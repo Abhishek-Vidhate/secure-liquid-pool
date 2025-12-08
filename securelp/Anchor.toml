@@ -7,6 +7,13 @@ skip-lint = false
 
 [programs.localnet]
 securelp = "BMxQAdqNJE3Zn6iJedc6A6XbsSTmNBQi6UzFdfrNvE21"
+stake_pool = "EyWBdqo6J5KEzQSvPYhsGFXjJfC6kkmTMGo8JTEzqhZ7"
+amm = "AcaXW2nDrvkpmuZnuiARDRJzmmfT1AZwLm4SMeYwnXKS"
+
+[programs.devnet]
+securelp = "BMxQAdqNJE3Zn6iJedc6A6XbsSTmNBQi6UzFdfrNvE21"
+stake_pool = "EyWBdqo6J5KEzQSvPYhsGFXjJfC6kkmTMGo8JTEzqhZ7"
+amm = "AcaXW2nDrvkpmuZnuiARDRJzmmfT1AZwLm4SMeYwnXKS"
 
 [registry]
 url = "https://api.apr.dev"
