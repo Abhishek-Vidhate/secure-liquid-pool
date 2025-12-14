@@ -7,18 +7,35 @@ import { useCommitment, formatCommitment, canReveal, getTimeUntilReveal } from "
 import { useStakePool } from "../hooks/useStakePool";
 import { useCommitReveal } from "../hooks/useCommitReveal";
 import { MIN_DELAY_SECONDS } from "../lib/constants";
+import ErrorDisplay from "./ErrorDisplay";
 
 export const Dashboard: FC = () => {
   const { connected } = useWallet();
-  const { solBalance, slpSolBalance, isLoading: balancesLoading } = useBalances();
-  const { commitment, exists: hasCommitment, isLoading: commitmentLoading } = useCommitment();
+  const { 
+    solBalance, 
+    slpSolBalance, 
+    isLoading: balancesLoading, 
+    isRefreshing: balancesRefreshing,
+    error: balancesError,
+    refetch: refreshBalances
+  } = useBalances();
+  const { 
+    commitment, 
+    exists: hasCommitment, 
+    isLoading: commitmentLoading,
+    error: commitmentError,
+    refetch: refreshCommitment
+  } = useCommitment();
   const { 
     poolConfig, 
     exchangeRate, 
     totalStakedSol, 
     reserveSol, 
     apy, 
-    loading: poolLoading 
+    loading: poolLoading,
+    isRefreshing: poolRefreshing,
+    error: poolError,
+    refresh: refreshPoolConfig
   } = useStakePool();
   const { cancelCommitment, phase } = useCommitReveal();
 
@@ -47,8 +64,31 @@ export const Dashboard: FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Error Displays */}
+      {poolError && (
+        <ErrorDisplay
+          error={poolError}
+          onRetry={refreshPoolConfig}
+          title="Failed to load pool data"
+        />
+      )}
+      {balancesError && (
+        <ErrorDisplay
+          error={balancesError}
+          onRetry={refreshBalances}
+          title="Failed to load balances"
+        />
+      )}
+      {commitmentError && (
+        <ErrorDisplay
+          error={commitmentError}
+          onRetry={refreshCommitment}
+          title="Failed to load commitment"
+        />
+      )}
+
       {/* Pool Status Banner */}
-      {!poolConfig && !poolLoading && (
+      {!poolConfig && !poolLoading && !poolError && (
         <div className="bg-amber-500/10 rounded-2xl p-4 border border-amber-500/30">
           <p className="text-amber-400 text-sm">
             ⚠️ Stake pool not initialized. Deploy the programs first.
@@ -64,7 +104,10 @@ export const Dashboard: FC = () => {
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
               <span className="text-lg font-bold">◎</span>
             </div>
-            <div>
+            <div className="relative">
+              {balancesRefreshing && !balancesLoading && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              )}
               <h3 className="text-zinc-400 text-sm">Available SOL</h3>
               {balancesLoading ? (
                 <div className="h-7 w-24 bg-zinc-700 rounded animate-pulse" />
@@ -82,7 +125,10 @@ export const Dashboard: FC = () => {
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
               <span className="text-lg font-bold">S</span>
             </div>
-            <div>
+            <div className="relative">
+              {balancesRefreshing && !balancesLoading && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+              )}
               <h3 className="text-zinc-400 text-sm">Staked secuSOL</h3>
               {balancesLoading ? (
                 <div className="h-7 w-24 bg-zinc-700 rounded animate-pulse" />
@@ -98,7 +144,12 @@ export const Dashboard: FC = () => {
       </div>
 
       {/* Pool Stats */}
-      <div className="bg-zinc-800/50 rounded-2xl p-6 border border-zinc-700/50">
+      <div className="bg-zinc-800/50 rounded-2xl p-6 border border-zinc-700/50 relative">
+        {poolRefreshing && !poolLoading && (
+          <div className="absolute top-4 right-4">
+            <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+          </div>
+        )}
         <h3 className="text-lg font-semibold text-white mb-4">Pool Statistics</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>

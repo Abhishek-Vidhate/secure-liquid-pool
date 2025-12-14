@@ -1,0 +1,55 @@
+[package]
+name = "mev-simulation"
+version = "0.1.0"
+edition = "2021"
+description = "MEV Sandwich Attack Simulation Framework for SecureLiquidPool"
+authors = ["SecureLiquidPool Team"]
+
+[[bin]]
+name = "mev-sim"
+path = "src/main.rs"
+
+[dependencies]
+# Solana
+solana-sdk = "1.18"
+solana-client = "1.18"
+solana-transaction-status = "1.18"
+spl-token = "4.0"
+spl-associated-token-account = "3.0"
+
+# Anchor (matching the program version)
+anchor-client = "0.30"
+anchor-lang = "0.30"
+
+# Async
+tokio = { version = "1.0", features = ["full", "rt-multi-thread", "macros"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+
+# Crypto
+sha2 = "0.10"
+rand = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Charts (outputs HTML with embedded Chart.js)
+minijinja = "2.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+

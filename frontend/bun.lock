@@ -17,6 +17,7 @@
         "next": "16.0.7",
         "react": "19.2.0",
         "react-dom": "19.2.0",
+        "three": "^0.182.0",
       },
       "devDependencies": {
         "@tailwindcss/postcss": "^4",
@@ -2061,6 +2062,8 @@
     "text-encoding-utf-8": ["text-encoding-utf-8@1.0.2", "", {}, "sha512-8bw4MY9WjdsD2aMtO0OzOCY3pXGYNx2d2FfHRVUKkiCPDWjKuOlhLVASS+pD7VkLTVjW268LYJHwsnPFlBpbAg=="],
 
     "thread-stream": ["thread-stream@0.15.2", "", { "dependencies": { "real-require": "^0.1.0" } }, "sha512-UkEhKIg2pD+fjkHQKyJO3yoIvAP3N6RlNFt2dUhcS1FGvCD1cQa1M/PGknCLFIyZdtJOWQjejp7bdNqmN7zwdA=="],
+
+    "three": ["three@0.182.0", "", {}, "sha512-GbHabT+Irv+ihI1/f5kIIsZ+Ef9Sl5A1Y7imvS5RQjWgtTPfPnZ43JmlYI7NtCRDK9zir20lQpfg8/9Yd02OvQ=="],
 
     "throat": ["throat@5.0.0", "", {}, "sha512-fcwX4mndzpLQKBS1DVYhGAcYaYt7vsHNIvQV+WXMvnow5cgjPphq5CaayLaGsjRdSCKZFNGt7/GYAuXaNOiYCA=="],
 

@@ -9,7 +9,7 @@ import { useCommitment } from "./useCommitment";
 import { useBalances } from "./useBalances";
 import { useStakePool } from "./useStakePool";
 import { createSwapDetailsWithHash, hashToArray } from "../lib/hash";
-import { sendTransaction } from "../lib/transaction";
+import { sendTransaction, confirmTransaction } from "../lib/transaction";
 import { 
   type SwapDetails, 
   getPoolConfigPDA, 
@@ -77,7 +77,7 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
   const wallet = useWallet();
   const { publicKey, signTransaction } = wallet;
   const program = useProgram();
-  const { refetch: refetchCommitment } = useCommitment();
+  const { commitment, refetch: refetchCommitment } = useCommitment(); // Get commitment to validate in reveal
   const { refetch: refetchBalances, slpSolMint } = useBalances();
   const { poolConfig, calculateSlpForSol, calculateSolForSlp, exchangeRate } = useStakePool();
 
@@ -158,19 +158,54 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
         })
         .transaction();
 
-      // Send transaction
-      const signature = await sendTransaction(connection, commitTx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      // Note: sendTransaction returns after wallet confirmation, but we wait for on-chain confirmation
+      const signature = await sendTransaction(
+        connection, 
+        commitTx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Keep phase as "committing" until transaction is confirmed on-chain
+      // This prevents the execute button from appearing before confirmation
       setState(prev => ({
         ...prev,
-        phase: "committed",
         txSignature: signature,
+        // Keep phase as "committing" - will change to "committed" after confirmation
       }));
 
-      // Refetch commitment to update UI
-      await refetchCommitment();
-      await refetchBalances();
+      // Confirm in background (non-blocking)
+      // After confirmation, refresh commitment data and THEN show execute button
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed on-chain - now refresh commitment and update UI
+          return refetchCommitment(true).then(() => {
+            // After commitment is refreshed, update phase to "committed" to show execute button
+            setState(prev => ({
+              ...prev,
+              phase: "committed",
+            }));
+          }).catch((err) => {
+            // If refresh fails, still update phase - polling will eventually update it
+            console.warn("Immediate commitment refresh failed, will retry via polling:", err);
+            setState(prev => ({
+              ...prev,
+              phase: "committed", // Show execute button even if refresh failed - polling will update
+            }));
+          });
+        })
+        .catch((error) => {
+          // Transaction failed - revert optimistic update
+          console.error("Transaction confirmation failed:", error);
+          setState(prev => ({
+            ...prev,
+            phase: "error",
+            error: error instanceof Error ? error.message : "Transaction failed",
+            txSignature: null,
+          }));
+        });
 
     } catch (error) {
       console.error("Stake initiation failed:", error);
@@ -183,8 +218,15 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
   }, [publicKey, program, signTransaction, connection, refetchCommitment, refetchBalances, poolConfig, calculateSlpForSol, exchangeRate]);
 
   const executeStakeReveal = useCallback(async () => {
-    if (!publicKey || !signTransaction || !state.swapDetails || !poolConfig || !slpSolMint) {
+    // Validate requirements - check both state and commitment from context
+    if (!publicKey || !signTransaction || !poolConfig || !slpSolMint) {
       setState(prev => ({ ...prev, phase: "error", error: "Missing requirements for reveal" }));
+      return;
+    }
+
+    // Check commitment exists and has required data
+    if (!commitment || !state.swapDetails) {
+      setState(prev => ({ ...prev, phase: "error", error: "Missing requirements for reveal - commitment or swap details not found" }));
       return;
     }
 
@@ -249,19 +291,67 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
         revealTx.instructions.unshift(createAtaIx);
       }
 
-      // Send transaction
-      const signature = await sendTransaction(connection, revealTx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      // Note: sendTransaction returns after wallet confirmation, but we wait for on-chain confirmation
+      const signature = await sendTransaction(
+        connection, 
+        revealTx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Keep phase as "revealing" until transaction is confirmed on-chain
+      // This prevents UI from resetting before confirmation
       setState(prev => ({
         ...prev,
-        phase: "completed",
         txSignature: signature,
+        // Keep phase as "revealing" - will change to "idle" after confirmation and commitment is cleared
       }));
 
-      // Refetch data
-      await refetchCommitment();
-      await refetchBalances();
+      // Confirm in background (non-blocking)
+      // After confirmation, refresh commitment (should be null after reveal - account is closed) and balances
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed on-chain - commitment PDA is closed, so commitment should be null
+          // Refresh commitment and balances immediately (bypass throttling)
+          return Promise.all([
+            refetchCommitment(true).catch(err => console.warn("Commitment refresh failed:", err)),
+            refetchBalances(true).catch(err => console.warn("Balance refresh failed:", err)),
+          ]).then(() => {
+            // After data is refreshed (commitment should be null), reset phase to idle to show the form again
+            // This ensures the execute button is hidden before the commit button appears
+            setState(prev => ({
+              ...prev,
+              phase: "idle",
+              error: null,
+              txSignature: null,
+              quote: null,
+              swapDetails: null,
+              nonce: null,
+            }));
+          }).catch(() => {
+            // If refreshes fail, still reset phase - polling will eventually update
+            setState(prev => ({
+              ...prev,
+              phase: "idle",
+              error: null,
+              txSignature: null,
+              quote: null,
+              swapDetails: null,
+              nonce: null,
+            }));
+          });
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setState(prev => ({
+            ...prev,
+            phase: "error",
+            error: error instanceof Error ? error.message : "Transaction failed",
+            txSignature: null,
+          }));
+        });
 
     } catch (error) {
       console.error("Stake reveal failed:", error);
@@ -341,18 +431,52 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
         })
         .transaction();
 
-      // Send transaction
-      const signature = await sendTransaction(connection, commitTx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      const signature = await sendTransaction(
+        connection, 
+        commitTx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Keep phase as "committing" until transaction is confirmed on-chain
+      // This prevents the execute button from appearing before confirmation
       setState(prev => ({
         ...prev,
-        phase: "committed",
         txSignature: signature,
+        // Keep phase as "committing" - will change to "committed" after confirmation
       }));
 
-      await refetchCommitment();
-      await refetchBalances();
+      // Confirm in background (non-blocking)
+      // After confirmation, refresh commitment data and THEN show execute button
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed on-chain - now refresh commitment and update UI
+          return refetchCommitment(true).then(() => {
+            // After commitment is refreshed, update phase to "committed" to show execute button
+            setState(prev => ({
+              ...prev,
+              phase: "committed",
+            }));
+          }).catch((err) => {
+            // If refresh fails, still update phase - polling will eventually update it
+            console.warn("Immediate commitment refresh failed, will retry via polling:", err);
+            setState(prev => ({
+              ...prev,
+              phase: "committed", // Show execute button even if refresh failed - polling will update
+            }));
+          });
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setState(prev => ({
+            ...prev,
+            phase: "error",
+            error: error instanceof Error ? error.message : "Transaction failed",
+            txSignature: null,
+          }));
+        });
 
     } catch (error) {
       console.error("Unstake initiation failed:", error);
@@ -365,8 +489,15 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
   }, [publicKey, program, signTransaction, connection, refetchCommitment, refetchBalances, poolConfig, calculateSolForSlp, exchangeRate]);
 
   const executeUnstakeReveal = useCallback(async () => {
-    if (!publicKey || !signTransaction || !state.swapDetails || !poolConfig || !slpSolMint) {
+    // Validate requirements - check both state and commitment from context
+    if (!publicKey || !signTransaction || !poolConfig || !slpSolMint) {
       setState(prev => ({ ...prev, phase: "error", error: "Missing requirements for reveal" }));
+      return;
+    }
+
+    // Check commitment exists and has required data
+    if (!commitment || !state.swapDetails) {
+      setState(prev => ({ ...prev, phase: "error", error: "Missing requirements for reveal - commitment or swap details not found" }));
       return;
     }
 
@@ -414,18 +545,67 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
         } as any)
         .transaction();
 
-      // Send transaction
-      const signature = await sendTransaction(connection, revealTx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      // Note: sendTransaction returns after wallet confirmation, but we wait for on-chain confirmation
+      const signature = await sendTransaction(
+        connection, 
+        revealTx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Keep phase as "revealing" until transaction is confirmed on-chain
+      // This prevents UI from resetting before confirmation
       setState(prev => ({
         ...prev,
-        phase: "completed",
         txSignature: signature,
+        // Keep phase as "revealing" - will change to "idle" after confirmation and commitment is cleared
       }));
 
-      await refetchCommitment();
-      await refetchBalances();
+      // Confirm in background (non-blocking)
+      // After confirmation, refresh commitment (should be null after reveal - account is closed) and balances
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed on-chain - commitment PDA is closed, so commitment should be null
+          // Refresh commitment and balances immediately (bypass throttling)
+          return Promise.all([
+            refetchCommitment(true).catch(err => console.warn("Commitment refresh failed:", err)),
+            refetchBalances(true).catch(err => console.warn("Balance refresh failed:", err)),
+          ]).then(() => {
+            // After data is refreshed (commitment should be null), reset phase to idle to show the form again
+            // This ensures the execute button is hidden before the commit button appears
+            setState(prev => ({
+              ...prev,
+              phase: "idle",
+              error: null,
+              txSignature: null,
+              quote: null,
+              swapDetails: null,
+              nonce: null,
+            }));
+          }).catch(() => {
+            // If refreshes fail, still reset phase - polling will eventually update
+            setState(prev => ({
+              ...prev,
+              phase: "idle",
+              error: null,
+              txSignature: null,
+              quote: null,
+              swapDetails: null,
+              nonce: null,
+            }));
+          });
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setState(prev => ({
+            ...prev,
+            phase: "error",
+            error: error instanceof Error ? error.message : "Transaction failed",
+            txSignature: null,
+          }));
+        });
 
     } catch (error) {
       console.error("Unstake reveal failed:", error);
@@ -457,10 +637,16 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
         })
         .transaction();
 
-      // Send transaction
-      const signature = await sendTransaction(connection, cancelTx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      const signature = await sendTransaction(
+        connection, 
+        cancelTx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Optimistic UI update
       setState({
         phase: "idle",
         error: null,
@@ -470,8 +656,25 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
         nonce: null,
       });
 
-      await refetchCommitment();
-      await refetchBalances();
+      // Confirm in background
+      // After confirmation, immediately refresh commitment to update UI (commitment cleared after cancel)
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed successfully - refresh commitment immediately (bypass throttling)
+          // This allows UI to update quickly without waiting for next poll cycle
+          refetchCommitment(true).catch(err => {
+            // If refresh fails, polling will eventually update
+            console.warn("Commitment refresh failed, will retry via polling:", err);
+          });
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setState(prev => ({
+            ...prev,
+            phase: "error",
+            error: error instanceof Error ? error.message : "Transaction failed",
+          }));
+        });
 
     } catch (error) {
       console.error("Cancel commitment failed:", error);

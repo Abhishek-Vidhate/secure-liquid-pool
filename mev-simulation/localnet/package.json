@@ -1,0 +1,28 @@
+{
+  "name": "mev-localnet-simulation",
+  "version": "1.0.0",
+  "description": "Solana localnet MEV simulation for testing commit-reveal protection",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "sim": "bun run src/index.ts",
+    "sim:quick": "bun run src/index.ts --transactions 50",
+    "sim:full": "bun run src/index.ts --transactions 500",
+    "clean": "rm -rf dist output/results.json output/report.html"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.30.1",
+    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-token": "^0.4.9",
+    "bn.js": "^5.2.1",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}
+

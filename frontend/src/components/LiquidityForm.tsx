@@ -23,14 +23,34 @@ import {
   getVaultAPDA, 
   getVaultBPDA,
 } from "../lib/program";
-import { sendTransaction } from "../lib/transaction";
+import { sendTransaction, confirmTransaction } from "../lib/transaction";
 import PoolStats from "./PoolStats";
+import ErrorDisplay from "./ErrorDisplay";
 
 export const LiquidityForm: FC = () => {
   const { connected, publicKey, signTransaction, wallet } = useWallet();
   const { connection } = useConnection();
-  const { solBalance, slpSolBalance, slpSolMint, isLoading: balancesLoading, refetch: refetchBalances } = useBalances();
-  const { ammPool, reserveA, reserveB, totalLpSupply, loading: ammLoading, feeBps, refresh: refreshAmm, lpMint } = useAmm();
+  const { 
+    solBalance, 
+    slpSolBalance, 
+    slpSolMint, 
+    isLoading: balancesLoading, 
+    isRefreshing: balancesRefreshing, 
+    refetch: refetchBalances,
+    error: balancesError
+  } = useBalances();
+  const { 
+    ammPool, 
+    reserveA, 
+    reserveB, 
+    totalLpSupply, 
+    loading: ammLoading, 
+    isRefreshing: ammRefreshing, 
+    feeBps, 
+    refresh: refreshAmm, 
+    lpMint,
+    error: ammError
+  } = useAmm();
 
   const [amount, setAmount] = useState("");
   const [lpAmount, setLpAmount] = useState("");
@@ -206,14 +226,30 @@ export const LiquidityForm: FC = () => {
 
       tx.add(addLiqIx);
 
-      const signature = await sendTransaction(connection, tx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      const signature = await sendTransaction(
+        connection, 
+        tx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Optimistic UI update
       setSuccess(`Liquidity added! TX: ${signature.slice(0, 8)}...`);
       setAmount("");
       
-      await refetchBalances();
-      await refreshAmm();
+      // Confirm in background
+      // Note: We don't refetch here - polling will handle updates automatically
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed successfully
+          // Polling will automatically update the data, no need to refetch
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setError(error instanceof Error ? error.message : "Transaction failed");
+        });
 
     } catch (err) {
       console.error("Add liquidity failed:", err);
@@ -295,14 +331,30 @@ export const LiquidityForm: FC = () => {
         userWsolAccount, publicKey, publicKey, [], TOKEN_PROGRAM_ID
       ));
 
-      const signature = await sendTransaction(connection, tx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      const signature = await sendTransaction(
+        connection, 
+        tx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Optimistic UI update
       setSuccess(`Liquidity removed! TX: ${signature.slice(0, 8)}...`);
       setLpAmount("");
       
-      await refetchBalances();
-      await refreshAmm();
+      // Confirm in background
+      // Note: We don't refetch here - polling will handle updates automatically
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed successfully
+          // Polling will automatically update the data, no need to refetch
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setError(error instanceof Error ? error.message : "Transaction failed");
+        });
 
     } catch (err) {
       console.error("Remove liquidity failed:", err);
@@ -337,6 +389,22 @@ export const LiquidityForm: FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Error Displays */}
+      {balancesError && (
+        <ErrorDisplay
+          error={balancesError}
+          onRetry={refetchBalances}
+          title="Failed to load balances"
+        />
+      )}
+      {ammError && (
+        <ErrorDisplay
+          error={ammError}
+          onRetry={refreshAmm}
+          title="Failed to load AMM pool data"
+        />
+      )}
+
       {/* Staking Pool Stats */}
       <PoolStats compact />
 
@@ -405,8 +473,11 @@ export const LiquidityForm: FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm text-zinc-400">You Pay</label>
-              <span className="text-sm text-zinc-500">
+              <span className="text-sm text-zinc-500 flex items-center gap-1">
                 Balance: {balancesLoading ? "..." : formatBalance(inputBalance)} {inputToken}
+                {balancesRefreshing && !balancesLoading && (
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                )}
               </span>
             </div>
             <div className="relative">
@@ -467,16 +538,19 @@ export const LiquidityForm: FC = () => {
           {/* Add Button */}
           <button
             onClick={handleAddLiquidity}
-            disabled={!isValidAmount() || ammLoading || isProcessing}
+            disabled={!isValidAmount() || ammLoading || balancesLoading || isProcessing}
             className={`
-              w-full py-4 rounded-xl font-semibold text-lg transition-all
-              ${isValidAmount() && !ammLoading && !isProcessing
+              w-full py-4 rounded-xl font-semibold text-lg transition-all relative
+              ${isValidAmount() && !ammLoading && !balancesLoading && !isProcessing
                 ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-400 hover:to-green-400 shadow-lg shadow-emerald-500/25 cursor-pointer"
                 : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
               }
             `}
           >
-            {isProcessing ? "Processing..." : ammLoading ? "Loading..." : "Add Liquidity"}
+            {isProcessing ? "Processing..." : ammLoading || balancesLoading ? "Loading..." : "Add Liquidity"}
+            {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && !isProcessing && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+            )}
           </button>
         </>
       ) : (
@@ -532,16 +606,19 @@ export const LiquidityForm: FC = () => {
           {/* Remove Button */}
           <button
             onClick={handleRemoveLiquidity}
-            disabled={!isValidAmount() || ammLoading || isProcessing}
+            disabled={!isValidAmount() || ammLoading || balancesLoading || isProcessing}
             className={`
-              w-full py-4 rounded-xl font-semibold text-lg transition-all
-              ${isValidAmount() && !ammLoading && !isProcessing
+              w-full py-4 rounded-xl font-semibold text-lg transition-all relative
+              ${isValidAmount() && !ammLoading && !balancesLoading && !isProcessing
                 ? "bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-400 hover:to-red-400 shadow-lg shadow-orange-500/25 cursor-pointer"
                 : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
               }
             `}
           >
-            {isProcessing ? "Processing..." : ammLoading ? "Loading..." : "Remove Liquidity"}
+            {isProcessing ? "Processing..." : ammLoading || balancesLoading ? "Loading..." : "Remove Liquidity"}
+            {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && !isProcessing && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+            )}
           </button>
         </>
       )}

@@ -13,9 +13,12 @@ import {
   SolflareWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
+import { Connection } from "@solana/web3.js";
 import { RPC_ENDPOINT } from "../lib/constants";
 import { getProgram } from "../lib/program";
 import type { Securelp } from "../types/securelp";
+import { PoolDataProvider } from "../contexts/PoolDataContext";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 // Import wallet adapter CSS
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -85,6 +88,16 @@ export const Providers: FC<ProvidersProps> = ({ children }) => {
   // RPC endpoint
   const endpoint = useMemo(() => RPC_ENDPOINT, []);
 
+  // Create connection with WebSocket disabled to prevent ws errors
+  // WebSocket subscriptions can cause issues with some RPC providers
+  const connection = useMemo(() => {
+    return new Connection(endpoint, {
+      commitment: "confirmed", // Use "confirmed" for reliable state, Helius indexes quickly
+      wsEndpoint: null, // Disable WebSocket to prevent ws errors
+      disableRetryOnRateLimit: true, // Disable automatic retries - we handle rate limits manually
+    });
+  }, [endpoint]);
+
   // Wallet adapters
   const wallets = useMemo(
     () => [
@@ -95,15 +108,19 @@ export const Providers: FC<ProvidersProps> = ({ children }) => {
   );
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ErrorBoundary>
+    <ConnectionProvider endpoint={endpoint} connection={connection}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <AnchorProviderComponent>
+              <PoolDataProvider>
             {children}
+              </PoolDataProvider>
           </AnchorProviderComponent>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
+    </ErrorBoundary>
   );
 };
 

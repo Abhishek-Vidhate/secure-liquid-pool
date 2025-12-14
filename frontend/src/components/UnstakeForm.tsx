@@ -10,6 +10,7 @@ import { useStakePool } from "../hooks/useStakePool";
 import { MIN_AMOUNT_LAMPORTS, DEFAULT_SLIPPAGE_BPS, MIN_DELAY_SECONDS } from "../lib/constants";
 import TransactionStatus from "./TransactionStatus";
 import PoolStats from "./PoolStats";
+import ErrorDisplay from "./ErrorDisplay";
 
 const SLIPPAGE_OPTIONS = [
   { label: "0.1%", value: 10 },
@@ -19,9 +20,24 @@ const SLIPPAGE_OPTIONS = [
 
 export const UnstakeForm: FC = () => {
   const { connected } = useWallet();
-  const { slpSolBalance, isLoading: balancesLoading } = useBalances();
+  const { 
+    slpSolBalance, 
+    isLoading: balancesLoading, 
+    isRefreshing: balancesRefreshing,
+    error: balancesError,
+    refetch: refreshBalances
+  } = useBalances();
   const { commitment, exists: hasCommitment } = useCommitment();
-  const { poolConfig, calculateSolForSlp, exchangeRate, reserveSol, loading: poolLoading } = useStakePool();
+  const { 
+    poolConfig, 
+    calculateSolForSlp, 
+    exchangeRate, 
+    reserveSol, 
+    loading: poolLoading, 
+    isRefreshing: poolRefreshing,
+    error: poolError,
+    refresh: refreshPoolConfig
+  } = useStakePool();
   const {
     phase,
     error,
@@ -140,6 +156,22 @@ export const UnstakeForm: FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Error Displays */}
+      {poolError && (
+        <ErrorDisplay
+          error={poolError}
+          onRetry={refreshPoolConfig}
+          title="Failed to load pool data"
+        />
+      )}
+      {balancesError && (
+        <ErrorDisplay
+          error={balancesError}
+          onRetry={refreshBalances}
+          title="Failed to load balances"
+        />
+      )}
+
       {/* Pool Stats */}
       <PoolStats compact />
 
@@ -156,8 +188,11 @@ export const UnstakeForm: FC = () => {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm text-zinc-400">Amount to Unstake</label>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-zinc-500 flex items-center gap-1">
             Balance: {balancesLoading ? "..." : formatBalance(slpSolBalance)} secuSOL
+            {balancesRefreshing && !balancesLoading && (
+              <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-pulse"></div>
+            )}
           </span>
         </div>
         <div className="relative">
@@ -271,16 +306,19 @@ export const UnstakeForm: FC = () => {
       ) : (
         <button
           onClick={handleUnstake}
-          disabled={!isValidAmount() || poolLoading}
+          disabled={!isValidAmount() || poolLoading || balancesLoading}
           className={`
-            w-full py-4 rounded-xl font-semibold text-lg transition-all
-            ${isValidAmount() && !poolLoading
+            w-full py-4 rounded-xl font-semibold text-lg transition-all relative
+            ${isValidAmount() && !poolLoading && !balancesLoading
               ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/25"
               : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
             }
           `}
         >
-          {poolLoading ? "Loading Pool..." : "Commit Unstake Intent"}
+          {poolLoading || balancesLoading ? "Loading..." : "Commit Unstake Intent"}
+          {(poolRefreshing || balancesRefreshing) && !poolLoading && !balancesLoading && (
+            <div className="absolute top-2 right-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+          )}
         </button>
       )}
 

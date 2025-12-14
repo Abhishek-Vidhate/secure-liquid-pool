@@ -10,6 +10,7 @@ import { useStakePool } from "../hooks/useStakePool";
 import { MIN_AMOUNT_LAMPORTS, DEFAULT_SLIPPAGE_BPS, MIN_DELAY_SECONDS } from "../lib/constants";
 import TransactionStatus from "./TransactionStatus";
 import PoolStats from "./PoolStats";
+import ErrorDisplay from "./ErrorDisplay";
 
 const SLIPPAGE_OPTIONS = [
   { label: "0.1%", value: 10 },
@@ -19,9 +20,23 @@ const SLIPPAGE_OPTIONS = [
 
 export const StakeForm: FC = () => {
   const { connected } = useWallet();
-  const { solBalance, isLoading: balancesLoading } = useBalances();
+  const { 
+    solBalance, 
+    isLoading: balancesLoading, 
+    isRefreshing: balancesRefreshing,
+    error: balancesError,
+    refetch: refreshBalances
+  } = useBalances();
   const { commitment, exists: hasCommitment } = useCommitment();
-  const { poolConfig, calculateSlpForSol, exchangeRate, loading: poolLoading } = useStakePool();
+  const { 
+    poolConfig, 
+    calculateSlpForSol, 
+    exchangeRate, 
+    loading: poolLoading, 
+    isRefreshing: poolRefreshing,
+    error: poolError,
+    refresh: refreshPoolConfig
+  } = useStakePool();
   const {
     phase,
     error,
@@ -96,7 +111,7 @@ export const StakeForm: FC = () => {
     );
   }
 
-  if (!poolConfig && !poolLoading) {
+  if (!poolConfig && !poolLoading && !poolError) {
     return (
       <div className="text-center py-12">
         <h3 className="text-xl font-semibold text-amber-400 mb-2">Pool Not Initialized</h3>
@@ -120,6 +135,22 @@ export const StakeForm: FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Error Displays */}
+      {poolError && (
+        <ErrorDisplay
+          error={poolError}
+          onRetry={refreshPoolConfig}
+          title="Failed to load pool data"
+        />
+      )}
+      {balancesError && (
+        <ErrorDisplay
+          error={balancesError}
+          onRetry={refreshBalances}
+          title="Failed to load balances"
+        />
+      )}
+
       {/* Pool Stats */}
       <PoolStats compact />
 
@@ -127,8 +158,11 @@ export const StakeForm: FC = () => {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm text-zinc-400">Amount to Stake</label>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-zinc-500 flex items-center gap-1">
             Balance: {balancesLoading ? "..." : formatBalance(solBalance)} SOL
+            {balancesRefreshing && !balancesLoading && (
+              <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-pulse"></div>
+            )}
           </span>
         </div>
         <div className="relative">
@@ -239,16 +273,19 @@ export const StakeForm: FC = () => {
       ) : (
         <button
           onClick={handleStake}
-          disabled={!isValidAmount() || poolLoading}
+          disabled={!isValidAmount() || poolLoading || balancesLoading}
           className={`
-            w-full py-4 rounded-xl font-semibold text-lg transition-all
-            ${isValidAmount() && !poolLoading
+            w-full py-4 rounded-xl font-semibold text-lg transition-all relative
+            ${isValidAmount() && !poolLoading && !balancesLoading
               ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 shadow-lg shadow-violet-500/25"
               : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
             }
           `}
         >
-          {poolLoading ? "Loading Pool..." : "Commit Stake Intent"}
+          {poolLoading || balancesLoading ? "Loading..." : "Commit Stake Intent"}
+          {(poolRefreshing || balancesRefreshing) && !poolLoading && !balancesLoading && (
+            <div className="absolute top-2 right-2 w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+          )}
         </button>
       )}
 

@@ -24,9 +24,10 @@ import {
   getVaultAPDA, 
   getVaultBPDA 
 } from "../lib/program";
-import { sendTransaction } from "../lib/transaction";
+import { sendTransaction, confirmTransaction } from "../lib/transaction";
 import TransactionStatus from "./TransactionStatus";
 import PoolStats from "./PoolStats";
+import ErrorDisplay from "./ErrorDisplay";
 import type { CommitRevealPhase } from "../hooks/useCommitReveal";
 
 const SLIPPAGE_OPTIONS = [
@@ -38,8 +39,26 @@ const SLIPPAGE_OPTIONS = [
 export const AmmSwap: FC = () => {
   const { connected, publicKey, signTransaction, wallet } = useWallet();
   const { connection } = useConnection();
-  const { solBalance, slpSolBalance, slpSolMint, isLoading: balancesLoading, refetch: refetchBalances } = useBalances();
-  const { ammPool, reserveA, reserveB, calculateSwapOutput, loading: ammLoading, feeBps, refresh: refreshAmm } = useAmm();
+  const { 
+    solBalance, 
+    slpSolBalance, 
+    slpSolMint, 
+    isLoading: balancesLoading, 
+    isRefreshing: balancesRefreshing, 
+    refetch: refetchBalances,
+    error: balancesError
+  } = useBalances();
+  const { 
+    ammPool, 
+    reserveA, 
+    reserveB, 
+    calculateSwapOutput, 
+    loading: ammLoading, 
+    isRefreshing: ammRefreshing, 
+    feeBps, 
+    refresh: refreshAmm,
+    error: ammError
+  } = useAmm();
 
   const [amount, setAmount] = useState("");
   const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS);
@@ -241,17 +260,32 @@ export const AmmSwap: FC = () => {
         ));
       }
 
-      // Send transaction
-      const signature = await sendTransaction(connection, tx, signTransaction, publicKey);
-      await connection.confirmTransaction(signature, "confirmed");
+      // Send transaction (non-blocking)
+      const signature = await sendTransaction(
+        connection, 
+        tx, 
+        signTransaction, 
+        publicKey,
+        { simulateFirst: true, priorityFee: 1000 }
+      );
 
+      // Optimistic UI update - update immediately
       setTxSignature(signature);
       setPhase("completed");
       setAmount("");
       
-      // Refresh data
-      await refetchBalances();
-      await refreshAmm();
+      // Confirm in background (non-blocking)
+      // Note: We don't refetch here - polling will handle updates automatically
+      confirmTransaction(connection, signature, "confirmed")
+        .then(() => {
+          // Transaction confirmed successfully
+          // Polling will automatically update the data, no need to refetch
+        })
+        .catch((error) => {
+          console.error("Transaction confirmation failed:", error);
+          setError(error instanceof Error ? error.message : "Transaction failed");
+          setPhase("error");
+        });
 
     } catch (err) {
       console.error("Swap failed:", err);
@@ -269,7 +303,7 @@ export const AmmSwap: FC = () => {
     );
   }
 
-  if (!ammPool && !ammLoading) {
+  if (!ammPool && !ammLoading && !ammError) {
     return (
       <div className="text-center py-12">
         <h3 className="text-xl font-semibold text-amber-400 mb-2">AMM Pool Not Initialized</h3>
@@ -297,6 +331,22 @@ export const AmmSwap: FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Error Displays */}
+      {balancesError && (
+        <ErrorDisplay
+          error={balancesError}
+          onRetry={refetchBalances}
+          title="Failed to load balances"
+        />
+      )}
+      {ammError && (
+        <ErrorDisplay
+          error={ammError}
+          onRetry={refreshAmm}
+          title="Failed to load AMM pool data"
+        />
+      )}
+
       {/* Staking Pool Stats */}
       <PoolStats compact />
 
@@ -320,8 +370,11 @@ export const AmmSwap: FC = () => {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm text-zinc-400">You Pay</label>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-zinc-500 flex items-center gap-1">
             Balance: {balancesLoading ? "..." : formatBalance(inputBalance)} {inputToken}
+            {balancesRefreshing && !balancesLoading && (
+              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></div>
+            )}
           </span>
         </div>
         <div className="relative">
@@ -394,16 +447,19 @@ export const AmmSwap: FC = () => {
       {/* Swap Button */}
       <button
         onClick={handleSwap}
-        disabled={!isValidAmount() || ammLoading || phase !== "idle"}
+        disabled={!isValidAmount() || ammLoading || balancesLoading || phase !== "idle"}
         className={`
-          w-full py-4 rounded-xl font-semibold text-lg transition-all
-          ${isValidAmount() && !ammLoading && phase === "idle"
+          w-full py-4 rounded-xl font-semibold text-lg transition-all relative
+          ${isValidAmount() && !ammLoading && !balancesLoading && phase === "idle"
             ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-400 hover:to-blue-400 shadow-lg shadow-cyan-500/25"
             : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
           }
         `}
       >
-        {ammLoading ? "Loading Pool..." : phase !== "idle" ? "Processing..." : `Swap ${inputToken} → ${outputToken}`}
+        {ammLoading || balancesLoading ? "Loading..." : phase !== "idle" ? "Processing..." : `Swap ${inputToken} → ${outputToken}`}
+        {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && phase === "idle" && (
+          <div className="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+        )}
       </button>
 
       {/* Info */}

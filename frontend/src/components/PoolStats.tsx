@@ -2,6 +2,7 @@
 
 import { FC } from "react";
 import { useStakePool } from "../hooks/useStakePool";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface PoolStatsProps {
   compact?: boolean;
@@ -14,7 +15,10 @@ export const PoolStats: FC<PoolStatsProps> = ({ compact = false }) => {
     exchangeRate, 
     apy, 
     totalSlpSupply,
-    loading 
+    loading,
+    isRefreshing,
+    error,
+    refresh: refreshPoolConfig
   } = useStakePool();
 
   if (loading) {
@@ -26,9 +30,26 @@ export const PoolStats: FC<PoolStatsProps> = ({ compact = false }) => {
     );
   }
 
+  // Show error if data failed to load
+  if (error) {
+    return (
+      <ErrorDisplay
+        error={error}
+        onRetry={refreshPoolConfig}
+        title="Failed to load pool statistics"
+        className="mb-4"
+      />
+    );
+  }
+
   if (compact) {
     return (
-      <div className="bg-zinc-800/30 border border-zinc-700/30 rounded-xl p-3">
+      <div className="bg-zinc-800/30 border border-zinc-700/30 rounded-xl p-3 relative">
+        {isRefreshing && (
+          <div className="absolute top-2 right-2">
+            <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+          </div>
+        )}
         <div className="flex items-center justify-between text-sm">
           <span className="text-zinc-500">Staking Pool TVL</span>
           <span className="text-white font-semibold">{totalStakedSol.toFixed(2)} SOL</span>
@@ -46,7 +67,12 @@ export const PoolStats: FC<PoolStatsProps> = ({ compact = false }) => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700/30 rounded-xl p-4">
+    <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700/30 rounded-xl p-4 relative">
+      {isRefreshing && (
+        <div className="absolute top-3 right-3">
+          <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+        </div>
+      )}
       <h3 className="text-sm font-medium text-zinc-400 mb-3 flex items-center gap-2">
         <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />

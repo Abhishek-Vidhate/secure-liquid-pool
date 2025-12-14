@@ -91,9 +91,9 @@ export const COMMITMENT_SEED_PREFIX = "commit";
 // API ENDPOINTS
 // ============================================================================
 
-/** RPC Endpoint */
+/** RPC Endpoint - Using Helius for faster transaction indexing and better rate limits */
 export const RPC_ENDPOINT = 
-  process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
+  process.env.NEXT_PUBLIC_RPC_URL || "https://devnet.helius-rpc.com/?api-key=387cb3e9-0527-4194-98e1-b2acb4791c57";
 
 /** Check if we're on devnet */
 export const IS_DEVNET = RPC_ENDPOINT.includes("devnet");

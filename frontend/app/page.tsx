@@ -106,11 +106,21 @@ export default function Home() {
         {/* Content Card */}
         <div className="max-w-lg mx-auto">
           <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800/50 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
-            {activeTab === "stake" && <StakeForm />}
-            {activeTab === "unstake" && <UnstakeForm />}
-            {activeTab === "swap" && <AmmSwap />}
-            {activeTab === "liquidity" && <LiquidityForm />}
-            {activeTab === "dashboard" && <Dashboard />}
+            <div className={activeTab === "stake" ? "" : "hidden"}>
+              <StakeForm />
+            </div>
+            <div className={activeTab === "unstake" ? "" : "hidden"}>
+              <UnstakeForm />
+            </div>
+            <div className={activeTab === "swap" ? "" : "hidden"}>
+              <AmmSwap />
+            </div>
+            <div className={activeTab === "liquidity" ? "" : "hidden"}>
+              <LiquidityForm />
+            </div>
+            <div className={activeTab === "dashboard" ? "" : "hidden"}>
+              <Dashboard />
+            </div>
           </div>
         </div>
 

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { fetchCommitment, Commitment as CommitmentType } from "../lib/program";
+import { usePoolData } from "../contexts/PoolDataContext";
+import { Commitment as CommitmentType } from "../lib/program";
 
 export interface CommitmentState {
   commitment: CommitmentType | null;
@@ -13,57 +12,27 @@ export interface CommitmentState {
 
 /**
  * Hook to fetch and track user's current commitment
+ * 
+ * Now consumes data from PoolDataContext for centralized state management.
+ * The pollInterval parameter is ignored as polling is handled by PoolDataContext.
  */
-export function useCommitment(pollInterval: number = 5000): CommitmentState & { refetch: () => Promise<void> } {
-  const { connection } = useConnection();
-  const { publicKey } = useWallet();
+export function useCommitment(pollInterval?: number): CommitmentState & { refetch: (bypassThrottle?: boolean) => Promise<void> } {
+  const {
+    commitment,
+    commitmentInitialLoading,
+    commitmentIsRefreshing,
+    commitmentError,
+    commitmentExists,
+    refreshCommitment,
+  } = usePoolData();
 
-  const [state, setState] = useState<CommitmentState>({
-    commitment: null,
-    isLoading: true,
-    error: null,
-    exists: false,
-  });
-
-  const fetchCommitmentData = useCallback(async () => {
-    if (!publicKey) {
-      setState({
-        commitment: null,
-        isLoading: false,
-        error: null,
-        exists: false,
-      });
-      return;
-    }
-
-    try {
-      const commitment = await fetchCommitment(connection, publicKey);
-      setState({
+  return {
         commitment,
-        isLoading: false,
-        error: null,
-        exists: commitment !== null,
-      });
-    } catch (error) {
-      console.error("Error fetching commitment:", error);
-      setState({
-        commitment: null,
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Failed to fetch commitment",
-        exists: false,
-      });
-    }
-  }, [connection, publicKey]);
-
-  // Initial fetch and polling
-  useEffect(() => {
-    fetchCommitmentData();
-
-    const interval = setInterval(fetchCommitmentData, pollInterval);
-    return () => clearInterval(interval);
-  }, [fetchCommitmentData, pollInterval]);
-
-  return { ...state, refetch: fetchCommitmentData };
+    isLoading: commitmentInitialLoading,
+    error: commitmentError?.message ?? null,
+    exists: commitmentExists,
+    refetch: refreshCommitment,
+  };
 }
 
 /**
