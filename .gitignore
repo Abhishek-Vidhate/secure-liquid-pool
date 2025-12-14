@@ -53,6 +53,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# MEV simulation output files (logs, reports, validator data)
+mev-simulation/**/output/
+mev-simulation/**/logs/
+mev-simulation/**/validator/
+mev-simulation/**/*.log
+mev-simulation/**/*.json
+!mev-simulation/**/package.json
+!mev-simulation/**/tsconfig.json
+!mev-simulation/**/Cargo.toml
+!mev-simulation/**/Cargo.lock
+!mev-simulation/**/README.md
+
 # MEV simulation output files (large logs, validator data, reports)
 mev-simulation/output/
 mev-simulation/localnet/output/
