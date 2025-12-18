@@ -20,19 +20,19 @@ const SLIPPAGE_OPTIONS = [
 
 export const StakeForm: FC = () => {
   const { connected } = useWallet();
-  const { 
-    solBalance, 
-    isLoading: balancesLoading, 
+  const {
+    solBalance,
+    isLoading: balancesLoading,
     isRefreshing: balancesRefreshing,
     error: balancesError,
     refetch: refreshBalances
   } = useBalances();
   const { commitment, exists: hasCommitment } = useCommitment();
-  const { 
-    poolConfig, 
-    calculateSlpForSol, 
-    exchangeRate, 
-    loading: poolLoading, 
+  const {
+    poolConfig,
+    calculateSlpForSol,
+    exchangeRate,
+    loading: poolLoading,
     isRefreshing: poolRefreshing,
     error: poolError,
     refresh: refreshPoolConfig
@@ -51,6 +51,13 @@ export const StakeForm: FC = () => {
   const [amount, setAmount] = useState("");
   const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS);
   const [outputPreview, setOutputPreview] = useState<string | null>(null);
+
+  // Reset input when transaction is completed
+  useEffect(() => {
+    if (phase === "completed") {
+      setAmount("");
+    }
+  }, [phase]);
 
   // Calculate output when amount changes
   useEffect(() => {
@@ -248,7 +255,7 @@ export const StakeForm: FC = () => {
             Amount: {(Number(commitment.amountLamports) / LAMPORTS_PER_SOL).toFixed(4)} SOL
           </div>
           <p className="text-amber-400/80 text-xs">
-            {canExecuteReveal 
+            {canExecuteReveal
               ? "✓ Delay period passed. You can now execute the stake."
               : "Please wait for the 1-second delay period to pass."}
           </p>

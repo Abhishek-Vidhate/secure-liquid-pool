@@ -20,9 +20,9 @@ export default function Home() {
       {/* Background gradient */}
       <div className="fixed inset-0 bg-gradient-to-br from-violet-950/30 via-zinc-950 to-indigo-950/30 -z-10" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-900/20 via-transparent to-transparent -z-10" />
-      
+
       {/* Grid pattern overlay */}
-      <div 
+      <div
         className="fixed inset-0 -z-10 opacity-[0.02]"
         style={{
           backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), 
@@ -50,6 +50,12 @@ export default function Home() {
 
             {/* Network Badge + Wallet */}
             <div className="flex items-center gap-4">
+              <a
+                href="/info"
+                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors hidden sm:block"
+              >
+                How It Works
+              </a>
               <span className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-xs font-medium">
                 <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
                 Devnet
@@ -70,7 +76,7 @@ export default function Home() {
             </span>
           </h2>
           <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-            Stake SOL to receive secuSOL and earn ~7% APY from Solana validator staking rewards. 
+            Stake SOL to receive secuSOL and earn ~7% APY from Solana validator staking rewards.
             Protected by our commit-reveal scheme against sandwich attacks.
           </p>
         </div>

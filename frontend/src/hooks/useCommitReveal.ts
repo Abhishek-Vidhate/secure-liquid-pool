@@ -10,9 +10,9 @@ import { useBalances } from "./useBalances";
 import { useStakePool } from "./useStakePool";
 import { createSwapDetailsWithHash, hashToArray } from "../lib/hash";
 import { sendTransaction, confirmTransaction } from "../lib/transaction";
-import { 
-  type SwapDetails, 
-  getPoolConfigPDA, 
+import {
+  type SwapDetails,
+  getPoolConfigPDA,
   getPoolAuthorityPDA,
   getReserveVaultPDA,
   getSecurelpProgram,
@@ -28,13 +28,14 @@ import BN from "bn.js";
 // TYPES
 // ============================================================================
 
-export type CommitRevealPhase = 
+export type CommitRevealPhase =
   | "idle"
   | "calculating"
   | "committing"
   | "committed"
   | "waiting_delay"
   | "revealing"
+  | "submitting"
   | "completed"
   | "error";
 
@@ -56,14 +57,14 @@ export interface CommitRevealActions {
   // Stake flow (SOL -> slpSOL)
   initiateStake: (amountSol: number, slippageBps: number) => Promise<void>;
   executeStakeReveal: () => Promise<void>;
-  
+
   // Unstake flow (slpSOL -> SOL)
   initiateUnstake: (amountSlpSol: number, slippageBps: number) => Promise<void>;
   executeUnstakeReveal: () => Promise<void>;
-  
+
   // Cancel
   cancelCommitment: () => Promise<void>;
-  
+
   // Reset
   reset: () => void;
 }
@@ -107,17 +108,17 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
     try {
       setState(prev => ({ ...prev, phase: "calculating", error: null }));
-      
+
       // Check if a commitment already exists
-      const existingCommitment = await import("../lib/program").then(m => 
+      const existingCommitment = await import("../lib/program").then(m =>
         m.fetchCommitment(connection, publicKey)
       );
-      
+
       if (existingCommitment) {
-        setState(prev => ({ 
-          ...prev, 
-          phase: "error", 
-          error: `You already have a pending ${existingCommitment.isStake ? "stake" : "unstake"} commitment. Please execute or cancel it first.` 
+        setState(prev => ({
+          ...prev,
+          phase: "error",
+          error: `You already have a pending ${existingCommitment.isStake ? "stake" : "unstake"} commitment. Please execute or cancel it first.`
         }));
         return;
       }
@@ -127,7 +128,7 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
       // Calculate expected slpSOL output
       const expectedSlpSol = calculateSlpForSol(amountLamports);
-      
+
       // Apply slippage tolerance
       const minOut = expectedSlpSol - (expectedSlpSol * BigInt(slippageBps) / BigInt(10000));
 
@@ -161,9 +162,9 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
       // Send transaction (non-blocking)
       // Note: sendTransaction returns after wallet confirmation, but we wait for on-chain confirmation
       const signature = await sendTransaction(
-        connection, 
-        commitTx, 
-        signTransaction, 
+        connection,
+        commitTx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );
@@ -255,10 +256,10 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
       // Get or create user's slpSOL token account
       const userSlpAccount = await getAssociatedTokenAddress(slpSolMint, publicKey);
-      
+
       // Check if account exists, if not add create instruction
       const accountInfo = await connection.getAccountInfo(userSlpAccount);
-      
+
       // Build reveal transaction
       const swapDetailsArg = {
         amountIn: new BN(state.swapDetails.amountIn.toString()),
@@ -294,19 +295,18 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
       // Send transaction (non-blocking)
       // Note: sendTransaction returns after wallet confirmation, but we wait for on-chain confirmation
       const signature = await sendTransaction(
-        connection, 
-        revealTx, 
-        signTransaction, 
+        connection,
+        revealTx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );
 
-      // Keep phase as "revealing" until transaction is confirmed on-chain
-      // This prevents UI from resetting before confirmation
+      // Optimistic UI update - set to completed immediately
       setState(prev => ({
         ...prev,
         txSignature: signature,
-        // Keep phase as "revealing" - will change to "idle" after confirmation and commitment is cleared
+        phase: "completed",
       }));
 
       // Confirm in background (non-blocking)
@@ -318,30 +318,7 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
           return Promise.all([
             refetchCommitment(true).catch(err => console.warn("Commitment refresh failed:", err)),
             refetchBalances(true).catch(err => console.warn("Balance refresh failed:", err)),
-          ]).then(() => {
-            // After data is refreshed (commitment should be null), reset phase to idle to show the form again
-            // This ensures the execute button is hidden before the commit button appears
-            setState(prev => ({
-              ...prev,
-              phase: "idle",
-              error: null,
-              txSignature: null,
-              quote: null,
-              swapDetails: null,
-              nonce: null,
-            }));
-          }).catch(() => {
-            // If refreshes fail, still reset phase - polling will eventually update
-            setState(prev => ({
-              ...prev,
-              phase: "idle",
-              error: null,
-              txSignature: null,
-              quote: null,
-              swapDetails: null,
-              nonce: null,
-            }));
-          });
+          ]);
         })
         .catch((error) => {
           console.error("Transaction confirmation failed:", error);
@@ -380,17 +357,17 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
     try {
       setState(prev => ({ ...prev, phase: "calculating", error: null }));
-      
+
       // Check if a commitment already exists
-      const existingCommitment = await import("../lib/program").then(m => 
+      const existingCommitment = await import("../lib/program").then(m =>
         m.fetchCommitment(connection, publicKey)
       );
-      
+
       if (existingCommitment) {
-        setState(prev => ({ 
-          ...prev, 
-          phase: "error", 
-          error: `You already have a pending ${existingCommitment.isStake ? "stake" : "unstake"} commitment. Please execute or cancel it first.` 
+        setState(prev => ({
+          ...prev,
+          phase: "error",
+          error: `You already have a pending ${existingCommitment.isStake ? "stake" : "unstake"} commitment. Please execute or cancel it first.`
         }));
         return;
       }
@@ -400,7 +377,7 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
       // Calculate expected SOL output
       const expectedSol = calculateSolForSlp(amountLamports);
-      
+
       // Apply slippage tolerance
       const minOut = expectedSol - (expectedSol * BigInt(slippageBps) / BigInt(10000));
 
@@ -433,9 +410,9 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
       // Send transaction (non-blocking)
       const signature = await sendTransaction(
-        connection, 
-        commitTx, 
-        signTransaction, 
+        connection,
+        commitTx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );
@@ -548,19 +525,18 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
       // Send transaction (non-blocking)
       // Note: sendTransaction returns after wallet confirmation, but we wait for on-chain confirmation
       const signature = await sendTransaction(
-        connection, 
-        revealTx, 
-        signTransaction, 
+        connection,
+        revealTx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );
 
-      // Keep phase as "revealing" until transaction is confirmed on-chain
-      // This prevents UI from resetting before confirmation
+      // Optimistic UI update - set to completed immediately
       setState(prev => ({
         ...prev,
         txSignature: signature,
-        // Keep phase as "revealing" - will change to "idle" after confirmation and commitment is cleared
+        phase: "completed",
       }));
 
       // Confirm in background (non-blocking)
@@ -572,30 +548,7 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
           return Promise.all([
             refetchCommitment(true).catch(err => console.warn("Commitment refresh failed:", err)),
             refetchBalances(true).catch(err => console.warn("Balance refresh failed:", err)),
-          ]).then(() => {
-            // After data is refreshed (commitment should be null), reset phase to idle to show the form again
-            // This ensures the execute button is hidden before the commit button appears
-            setState(prev => ({
-              ...prev,
-              phase: "idle",
-              error: null,
-              txSignature: null,
-              quote: null,
-              swapDetails: null,
-              nonce: null,
-            }));
-          }).catch(() => {
-            // If refreshes fail, still reset phase - polling will eventually update
-            setState(prev => ({
-              ...prev,
-              phase: "idle",
-              error: null,
-              txSignature: null,
-              quote: null,
-              swapDetails: null,
-              nonce: null,
-            }));
-          });
+          ]);
         })
         .catch((error) => {
           console.error("Transaction confirmation failed:", error);
@@ -639,9 +592,9 @@ export function useCommitReveal(): CommitRevealState & CommitRevealActions {
 
       // Send transaction (non-blocking)
       const signature = await sendTransaction(
-        connection, 
-        cancelTx, 
-        signTransaction, 
+        connection,
+        cancelTx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );

@@ -19,6 +19,7 @@ const phaseMessages: Record<CommitRevealPhase, { title: string; description: str
   committed: { title: "Intent Committed!", description: "Your swap intent is now hidden on-chain." },
   waiting_delay: { title: "Waiting for Delay", description: "Ensuring MEV protection (1 second delay)..." },
   revealing: { title: "Executing Transaction", description: "Revealing intent and executing stake/unstake..." },
+  submitting: { title: "Processing Transaction", description: "Please wait while your transaction is being processed..." },
   completed: { title: "Success!", description: "Your transaction has been completed successfully." },
   error: { title: "Error", description: "Something went wrong." },
 };
@@ -33,7 +34,7 @@ export const TransactionStatus: FC<TransactionStatusProps> = ({
   if (phase === "idle") return null;
 
   const { title, description } = phaseMessages[phase];
-  const isLoading = ["calculating", "committing", "waiting_delay", "revealing"].includes(phase);
+  const isLoading = ["calculating", "committing", "waiting_delay", "revealing", "submitting"].includes(phase);
   const isSuccess = phase === "completed";
   const isError = phase === "error";
 

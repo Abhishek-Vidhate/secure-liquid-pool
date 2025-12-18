@@ -3,8 +3,8 @@
 import { FC, useState, useEffect, useCallback } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
-import { 
-  getAssociatedTokenAddress, 
+import {
+  getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   createSyncNativeInstruction,
   createCloseAccountInstruction,
@@ -16,38 +16,40 @@ import { AnchorProvider } from "@coral-xyz/anchor";
 import BN from "bn.js";
 import { useBalances, formatBalance } from "../hooks/useBalances";
 import { useAmm } from "../hooks/useAmm";
-import { 
-  getAmmProgram, 
-  getAmmPoolPDA, 
-  getAmmAuthorityPDA, 
-  getVaultAPDA, 
+import {
+  getAmmProgram,
+  getAmmPoolPDA,
+  getAmmAuthorityPDA,
+  getVaultAPDA,
   getVaultBPDA,
 } from "../lib/program";
 import { sendTransaction, confirmTransaction } from "../lib/transaction";
+import TransactionStatus from "./TransactionStatus";
 import PoolStats from "./PoolStats";
 import ErrorDisplay from "./ErrorDisplay";
+import { CommitRevealPhase } from "../hooks/useCommitReveal";
 
 export const LiquidityForm: FC = () => {
   const { connected, publicKey, signTransaction, wallet } = useWallet();
   const { connection } = useConnection();
-  const { 
-    solBalance, 
-    slpSolBalance, 
-    slpSolMint, 
-    isLoading: balancesLoading, 
-    isRefreshing: balancesRefreshing, 
+  const {
+    solBalance,
+    slpSolBalance,
+    slpSolMint,
+    isLoading: balancesLoading,
+    isRefreshing: balancesRefreshing,
     refetch: refetchBalances,
     error: balancesError
   } = useBalances();
-  const { 
-    ammPool, 
-    reserveA, 
-    reserveB, 
-    totalLpSupply, 
-    loading: ammLoading, 
-    isRefreshing: ammRefreshing, 
-    feeBps, 
-    refresh: refreshAmm, 
+  const {
+    ammPool,
+    reserveA,
+    reserveB,
+    totalLpSupply,
+    loading: ammLoading,
+    isRefreshing: ammRefreshing,
+    feeBps,
+    refresh: refreshAmm,
     lpMint,
     error: ammError
   } = useAmm();
@@ -56,15 +58,16 @@ export const LiquidityForm: FC = () => {
   const [lpAmount, setLpAmount] = useState("");
   const [mode, setMode] = useState<"add" | "remove">("add");
   const [activeInput, setActiveInput] = useState<"sol" | "secusol">("sol");
-  const [isProcessing, setIsProcessing] = useState(false);
+
+  const [phase, setPhase] = useState<CommitRevealPhase>("idle");
+  const [txSignature, setTxSignature] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [userLpBalance, setUserLpBalance] = useState(0);
 
   // Calculate paired amounts based on pool ratio
   const ratio = reserveA > 0 && reserveB > 0 ? reserveB / reserveA : 1;
   const numAmount = parseFloat(amount) || 0;
-  
+
   // If user types SOL, calculate secuSOL. If user types secuSOL, calculate SOL.
   const solAmount = activeInput === "sol" ? numAmount : numAmount / ratio;
   const secuSolAmount = activeInput === "sol" ? numAmount * ratio : numAmount;
@@ -73,10 +76,10 @@ export const LiquidityForm: FC = () => {
   useEffect(() => {
     const fetchLpBalance = async () => {
       if (!publicKey || !lpMint) return;
-      
+
       try {
         const userLpAta = await getAssociatedTokenAddress(lpMint, publicKey);
-        
+
         try {
           const account = await getAccount(connection, userLpAta);
           setUserLpBalance(Number(account.amount) / LAMPORTS_PER_SOL);
@@ -87,17 +90,17 @@ export const LiquidityForm: FC = () => {
         console.error("Error fetching LP balance:", err);
       }
     };
-    
+
     fetchLpBalance();
-  }, [publicKey, lpMint, connection, success]);
+  }, [publicKey, lpMint, connection, phase]);
 
   // Calculate expected output for remove liquidity
   const numLpAmount = parseFloat(lpAmount) || 0;
-  const expectedSolOutput = numLpAmount && totalLpSupply > 0 
-    ? (numLpAmount / totalLpSupply) * reserveA 
+  const expectedSolOutput = numLpAmount && totalLpSupply > 0
+    ? (numLpAmount / totalLpSupply) * reserveA
     : 0;
-  const expectedSecuSolOutput = numLpAmount && totalLpSupply > 0 
-    ? (numLpAmount / totalLpSupply) * reserveB 
+  const expectedSecuSolOutput = numLpAmount && totalLpSupply > 0
+    ? (numLpAmount / totalLpSupply) * reserveB
     : 0;
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>, input: "sol" | "secusol") => {
@@ -143,9 +146,9 @@ export const LiquidityForm: FC = () => {
     if (solAmount <= 0 || secuSolAmount <= 0) return;
 
     try {
-      setIsProcessing(true);
+      setPhase("submitting");
       setError(null);
-      setSuccess(null);
+      setTxSignature(null);
 
       const amountALamports = BigInt(Math.floor(solAmount * LAMPORTS_PER_SOL));
       const amountBLamports = BigInt(Math.floor(secuSolAmount * LAMPORTS_PER_SOL));
@@ -157,7 +160,7 @@ export const LiquidityForm: FC = () => {
       );
 
       const ammProgram = getAmmProgram(provider);
-      
+
       const [ammPoolPda] = getAmmPoolPDA(NATIVE_MINT, slpSolMint);
       const [ammAuthority] = getAmmAuthorityPDA(ammPoolPda);
       const [vaultA] = getVaultAPDA(ammPoolPda);
@@ -174,7 +177,7 @@ export const LiquidityForm: FC = () => {
       try {
         await getAccount(connection, userWsolAccount);
         wsolExists = true;
-      } catch {}
+      } catch { }
 
       if (!wsolExists) {
         tx.add(createAssociatedTokenAccountInstruction(
@@ -195,7 +198,7 @@ export const LiquidityForm: FC = () => {
       try {
         await getAccount(connection, userLpAccount);
         lpExists = true;
-      } catch {}
+      } catch { }
 
       if (!lpExists) {
         tx.add(createAssociatedTokenAccountInstruction(
@@ -228,17 +231,18 @@ export const LiquidityForm: FC = () => {
 
       // Send transaction (non-blocking)
       const signature = await sendTransaction(
-        connection, 
-        tx, 
-        signTransaction, 
+        connection,
+        tx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );
 
       // Optimistic UI update
-      setSuccess(`Liquidity added! TX: ${signature.slice(0, 8)}...`);
+      setTxSignature(signature);
+      setPhase("completed");
       setAmount("");
-      
+
       // Confirm in background
       // Note: We don't refetch here - polling will handle updates automatically
       confirmTransaction(connection, signature, "confirmed")
@@ -249,13 +253,13 @@ export const LiquidityForm: FC = () => {
         .catch((error) => {
           console.error("Transaction confirmation failed:", error);
           setError(error instanceof Error ? error.message : "Transaction failed");
+          setPhase("error");
         });
 
     } catch (err) {
       console.error("Add liquidity failed:", err);
       setError(err instanceof Error ? err.message : "Failed to add liquidity");
-    } finally {
-      setIsProcessing(false);
+      setPhase("error");
     }
   }, [publicKey, signTransaction, slpSolMint, lpMint, solAmount, secuSolAmount, connection, wallet, refetchBalances, refreshAmm]);
 
@@ -265,9 +269,9 @@ export const LiquidityForm: FC = () => {
     if (!numLpAmount) return;
 
     try {
-      setIsProcessing(true);
+      setPhase("submitting");
       setError(null);
-      setSuccess(null);
+      setTxSignature(null);
 
       const lpLamports = BigInt(Math.floor(numLpAmount * LAMPORTS_PER_SOL));
 
@@ -278,7 +282,7 @@ export const LiquidityForm: FC = () => {
       );
 
       const ammProgram = getAmmProgram(provider);
-      
+
       const [ammPoolPda] = getAmmPoolPDA(NATIVE_MINT, slpSolMint);
       const [ammAuthority] = getAmmAuthorityPDA(ammPoolPda);
       const [vaultA] = getVaultAPDA(ammPoolPda);
@@ -295,7 +299,7 @@ export const LiquidityForm: FC = () => {
       try {
         await getAccount(connection, userWsolAccount);
         wsolExists = true;
-      } catch {}
+      } catch { }
 
       if (!wsolExists) {
         tx.add(createAssociatedTokenAccountInstruction(
@@ -333,17 +337,18 @@ export const LiquidityForm: FC = () => {
 
       // Send transaction (non-blocking)
       const signature = await sendTransaction(
-        connection, 
-        tx, 
-        signTransaction, 
+        connection,
+        tx,
+        signTransaction,
         publicKey,
         { simulateFirst: true, priorityFee: 1000 }
       );
 
       // Optimistic UI update
-      setSuccess(`Liquidity removed! TX: ${signature.slice(0, 8)}...`);
+      setTxSignature(signature);
+      setPhase("completed");
       setLpAmount("");
-      
+
       // Confirm in background
       // Note: We don't refetch here - polling will handle updates automatically
       confirmTransaction(connection, signature, "confirmed")
@@ -354,13 +359,13 @@ export const LiquidityForm: FC = () => {
         .catch((error) => {
           console.error("Transaction confirmation failed:", error);
           setError(error instanceof Error ? error.message : "Transaction failed");
+          setPhase("error");
         });
 
     } catch (err) {
       console.error("Remove liquidity failed:", err);
       setError(err instanceof Error ? err.message : "Failed to remove liquidity");
-    } finally {
-      setIsProcessing(false);
+      setPhase("error");
     }
   }, [publicKey, signTransaction, slpSolMint, lpMint, numLpAmount, connection, wallet, refetchBalances, refreshAmm]);
 
@@ -379,6 +384,27 @@ export const LiquidityForm: FC = () => {
         <h3 className="text-xl font-semibold text-amber-400 mb-2">AMM Pool Not Initialized</h3>
         <p className="text-zinc-500">The AMM pool needs to be initialized first.</p>
       </div>
+    );
+  }
+
+  // Show transaction status during operations
+  if (phase !== "idle") {
+    return (
+      <TransactionStatus
+        phase={phase}
+        error={error}
+        txSignature={txSignature}
+        onRetry={() => {
+          setPhase("idle");
+          setError(null);
+          setTxSignature(null);
+        }}
+        onClose={() => {
+          setPhase("idle");
+          setError(null);
+          setTxSignature(null);
+        }}
+      />
     );
   }
 
@@ -411,22 +437,20 @@ export const LiquidityForm: FC = () => {
       {/* Mode Toggle */}
       <div className="flex rounded-lg bg-zinc-800/50 p-1">
         <button
-          onClick={() => { setMode("add"); setError(null); setSuccess(null); }}
-          className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${
-            mode === "add"
-              ? "bg-emerald-500/20 text-emerald-400"
-              : "text-zinc-400 hover:text-zinc-300"
-          }`}
+          onClick={() => { setMode("add"); setError(null); setPhase("idle"); }}
+          className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${mode === "add"
+            ? "bg-emerald-500/20 text-emerald-400"
+            : "text-zinc-400 hover:text-zinc-300"
+            }`}
         >
           Add Liquidity
         </button>
         <button
-          onClick={() => { setMode("remove"); setError(null); setSuccess(null); }}
-          className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${
-            mode === "remove"
-              ? "bg-orange-500/20 text-orange-400"
-              : "text-zinc-400 hover:text-zinc-300"
-          }`}
+          onClick={() => { setMode("remove"); setError(null); setPhase("idle"); }}
+          className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${mode === "remove"
+            ? "bg-orange-500/20 text-orange-400"
+            : "text-zinc-400 hover:text-zinc-300"
+            }`}
         >
           Remove Liquidity
         </button>
@@ -455,17 +479,9 @@ export const LiquidityForm: FC = () => {
         </div>
       </div>
 
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-          <p className="text-red-400 text-sm">{error}</p>
-        </div>
-      )}
-      {success && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
-          <p className="text-emerald-400 text-sm">{success}</p>
-        </div>
-      )}
+      {/* Error Messages - Only show if not handled by TransactionStatus (which handles phase=error) */}
+      {/* Note: In this new design, we might want to keep inline errors for validation, but transaction errors are shown in the status view */}
+      {/* For now, we removed the inline error block because phase 'error' switches the view */}
 
       {mode === "add" ? (
         <>
@@ -486,7 +502,7 @@ export const LiquidityForm: FC = () => {
                 value={amount}
                 onChange={(e) => handleAmountChange(e, activeInput)}
                 placeholder="0.0"
-                disabled={isProcessing}
+                disabled={false} // TransactionStatus view will block input
                 className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-4 text-2xl font-semibold text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 disabled:opacity-50"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -496,7 +512,7 @@ export const LiquidityForm: FC = () => {
                     const maxBal = activeInput === "sol" ? Math.max(0, solBalance - 0.01) : slpSolBalance;
                     setAmount(maxBal.toFixed(6));
                   }}
-                  disabled={isProcessing}
+                  disabled={false}
                   className="px-2 py-1 text-xs font-medium text-emerald-400 bg-emerald-500/20 rounded hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
                 >
                   MAX
@@ -510,7 +526,7 @@ export const LiquidityForm: FC = () => {
           <div className="flex justify-center">
             <button
               onClick={handleSwitch}
-              disabled={isProcessing}
+              disabled={false}
               className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center hover:bg-zinc-700 transition-colors disabled:opacity-50"
             >
               <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -538,17 +554,17 @@ export const LiquidityForm: FC = () => {
           {/* Add Button */}
           <button
             onClick={handleAddLiquidity}
-            disabled={!isValidAmount() || ammLoading || balancesLoading || isProcessing}
+            disabled={!isValidAmount() || ammLoading || balancesLoading}
             className={`
               w-full py-4 rounded-xl font-semibold text-lg transition-all relative
-              ${isValidAmount() && !ammLoading && !balancesLoading && !isProcessing
+              ${isValidAmount() && !ammLoading && !balancesLoading
                 ? "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-400 hover:to-green-400 shadow-lg shadow-emerald-500/25 cursor-pointer"
                 : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
               }
             `}
           >
-            {isProcessing ? "Processing..." : ammLoading || balancesLoading ? "Loading..." : "Add Liquidity"}
-            {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && !isProcessing && (
+            {ammLoading || balancesLoading ? "Loading..." : "Add Liquidity"}
+            {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && (
               <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
             )}
           </button>
@@ -569,13 +585,13 @@ export const LiquidityForm: FC = () => {
                 value={lpAmount}
                 onChange={handleLpAmountChange}
                 placeholder="0.0"
-                disabled={isProcessing}
+                disabled={false}
                 className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-4 text-2xl font-semibold text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 disabled:opacity-50"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button
                   onClick={() => setLpAmount(userLpBalance.toFixed(6))}
-                  disabled={isProcessing || userLpBalance <= 0}
+                  disabled={userLpBalance <= 0}
                   className="px-2 py-1 text-xs font-medium text-orange-400 bg-orange-500/20 rounded hover:bg-orange-500/30 transition-colors disabled:opacity-50"
                 >
                   MAX
@@ -606,17 +622,17 @@ export const LiquidityForm: FC = () => {
           {/* Remove Button */}
           <button
             onClick={handleRemoveLiquidity}
-            disabled={!isValidAmount() || ammLoading || balancesLoading || isProcessing}
+            disabled={!isValidAmount() || ammLoading || balancesLoading}
             className={`
               w-full py-4 rounded-xl font-semibold text-lg transition-all relative
-              ${isValidAmount() && !ammLoading && !balancesLoading && !isProcessing
+              ${isValidAmount() && !ammLoading && !balancesLoading
                 ? "bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-400 hover:to-red-400 shadow-lg shadow-orange-500/25 cursor-pointer"
                 : "bg-zinc-700 text-zinc-400 cursor-not-allowed"
               }
             `}
           >
-            {isProcessing ? "Processing..." : ammLoading || balancesLoading ? "Loading..." : "Remove Liquidity"}
-            {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && !isProcessing && (
+            {ammLoading || balancesLoading ? "Loading..." : "Remove Liquidity"}
+            {(ammRefreshing || balancesRefreshing) && !ammLoading && !balancesLoading && (
               <div className="absolute top-2 right-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
             )}
           </button>

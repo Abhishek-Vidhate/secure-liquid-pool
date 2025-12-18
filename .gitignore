@@ -6,10 +6,11 @@ node_modules
 test-ledger
 .yarn
 
-commit-reveal-info.md
-project-info.md
-solana-program-plan.md
-frontend-plan.md
+#commit-reveal-info.md
+#project-info.md
+#solana-program-plan.md
+#frontend-plan.md
+#TRANSACTION_OPTIMIZATION_SUMMARY.md
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
