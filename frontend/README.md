@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SecureLiquidPool Frontend
 
-## Getting Started
+The modern, responsive web interface for the SecureLiquidPool protocol. Built with the latest **Next.js 16**, **Tailwind CSS v4**, and **Three.js** for immersive visuals.
 
-First, run the development server:
+## 🛠️ Tech Stack & Prerequisites
+
+- **Next.js 16**: Using the latest React Server Components and App Router.
+- **Bun**: This project uses [Bun](https://bun.sh) as the package manager and runtime.
+- **Tailwind CSS v4**: For high-performance utility-first styling.
+- **Three.js (@react-three/fiber)**: For the 3D "Light Pillar" background.
+
+## 🚀 Getting Started
+
+### 1. Install Dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
+```
+
+### 2. Copy IDL and Types
+
+To ensure the frontend communicates correctly with the Solana program, you must copy the latest IDL and TypeScript definitions from your anchor workspace.
+
+**Run these commands from the `frontend/` directory:**
+
+```bash
+# Copy IDL (Interface Definition Language)
+cp ../securelp/target/idl/securelp.json ./src/idl/
+
+# Copy TypeScript Types
+cp ../securelp/target/types/securelp.ts ./src/types/
+```
+
+> **Note**: If you make changes to the Solana program, you must run `anchor build` in the `securelp` directory and re-run these copy commands to keep the frontend in sync.
+
+### 3. Run Development Server
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🎨 Key Features & Code Locations
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Main Dashboard**: [`app/page.tsx`](./app/page.tsx) - Handles Staking, Unstaking, and Liquidity management.
+- **Info & Education**: [`app/info/page.tsx`](./app/info/page.tsx) - The educational page explaining Sandwich Attacks with visual aids.
+- **Commit-Reveal Logic**: [`src/hooks/useCommitReveal.ts`](./src/hooks/useCommitReveal.ts) - The React hook that manages the 2-step transaction process to protect users.
+- **3D Background**: [`src/components/LightPillar.tsx`](./src/components/LightPillar.tsx) - The Three.js component rendering the ethereal light beam.
 
-## Learn More
+## 🧪 Testing
 
-To learn more about Next.js, take a look at the following resources:
+This frontend connects to `localnet` by default (defined in `.env.local` or defaults to `http://127.0.0.1:8899`). 
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Ensure your local validator is running:
+```bash
+# In a separate terminal, inside securelp directory
+anchor localnet
+```
