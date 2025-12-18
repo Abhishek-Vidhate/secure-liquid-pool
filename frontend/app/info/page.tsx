@@ -71,7 +71,7 @@ export default function InfoPage() {
           {/* Image Visualization: Sandwich Attack */}
           <div className="relative aspect-video rounded-3xl border border-zinc-700/50 bg-black/40 backdrop-blur-sm overflow-hidden shadow-2xl shadow-red-900/20 hover:scale-[1.01] transition-transform duration-500">
             <img
-              src="/sandwich-attack.png"
+              src="/sandwich-attack-bg.png"
               alt="Sandwich Attack Visualization"
               className="w-full h-full object-contain p-4"
             />

@@ -3,7 +3,7 @@
 > **The First "Sandwich-Proof" Liquid Staking Protocol & AMM on Solana.**
 > Use **Commit-Reveal** technology to protect your trades and stakes from MEV bots while earning yield.
 
-![SecureLiquidPool Hero](frontend/public/sandwich-attack.png)
+![SecureLiquidPool Hero](frontend/public/sandwich-attack-bg.png)
 
 ## 🚨 The Problem: MEV Sandwich Attacks
 
