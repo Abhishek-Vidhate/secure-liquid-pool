@@ -99,10 +99,10 @@ Standard Constant Product Market Maker ($x * y = k$). It allows swapping between
 ### Flowchart
 ```mermaid
 graph LR
-    User[User] -->|1. Swap Input| AMM[AMM Program]
-    AMM -->|2. Calc Output (xy=k)| Logic{Constant Product}
-    Logic -->|3. Update Reserves| State[(Pool State)]
-    State -->|4. Transfer| Vaults[Token Vaults]
+    User["User"] -->|1. Swap Input| AMM["AMM Program"]
+    AMM -->|"2. Calc Output (xy=k)"| Logic{"Constant Product"}
+    Logic -->|3. Update Reserves| State[("Pool State")]
+    State -->|4. Transfer| Vaults["Token Vaults"]
     Vaults -->|5. Output Token| User
 ```
 
@@ -142,12 +142,12 @@ Manages the SOL liquidity. Users deposit SOL to receive `secuSOL` (liquid token)
 ### Flowchart
 ```mermaid
 graph TD
-    User[User] -->|Deposit SOL| Pool[Stake Pool]
-    Pool -->|Mint| Token[secuSOL Token]
+    User["User"] -->|Deposit SOL| Pool["Stake Pool"]
+    Pool -->|Mint| Token["secuSOL Token"]
     Token -->|Return| User
-    Pool -->|Delegate SOL| Validators[Solana Validators]
+    Pool -->|Delegate SOL| Validators["Solana Validators"]
     Validators -->|Rewards| Pool
-    Note[Rewards increase secuSOL price] -.-> Pool
+    Note["Rewards increase secuSOL price"] -.-> Pool
 ```
 
 ### Key Logic: Deposit SOL
@@ -167,32 +167,4 @@ pub fn deposit_sol(ctx: Context<DepositSol>, amount_lamports: u64) -> Result<()>
     token::mint_to(cpi_ctx, slp_to_mint)?;
     // ...
 }
-```
-
----
-
-## 🚀 Setup & Build
-
-### 1. Install Dependencies
-```bash
-bun install
-```
-
-### 2. Build Information
-```bash
-anchor build
-```
-This generates:
-- **IDL**: `target/idl/` (JSON descriptions of programs)
-- **Types**: `target/types/` (TypeScript definitions)
-
-### 3. Run Tests
-```bash
-anchor test
-```
-
-## 🧪 Localnet Testing
-To allow the frontend to connect, run a local validator with the programs deployed:
-```bash
-anchor localnet
 ```
