@@ -34,7 +34,7 @@ SecureLiquidPool implements a **Commit-Reveal** mechanism. Instead of broadcasti
 Watch the full application demo and technical code walkthrough:
 
 <a href="https://youtu.be/xxWfVNC1VfY" target="_blank">
-  <img src="https://markdown-videos-api.vercel.app/url?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DxxWfVNC1VfY" alt="Demo Video" width="600" />
+  <img src="https://img.youtube.com/vi/xxWfVNC1VfY/hqdefault.jpg" alt="Demo Video" width="600" />
 </a>
 
 [**Watch on YouTube**](https://youtu.be/xxWfVNC1VfY)
