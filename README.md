@@ -1,9 +1,17 @@
 # 🛡️ SecureLiquidPool Protocol
 
+# Pitch ( with Project Demo ) video : [youtube video link](https://youtu.be/xxWfVNC1VfY)
+
 > **The First "Sandwich-Proof" Liquid Staking Protocol & AMM on Solana.**
 > Use **Commit-Reveal** technology to protect your trades and stakes from MEV bots while earning yield.
 
 ![SecureLiquidPool Hero](frontend/public/sandwich-attack-bg.png)
+
+---
+
+
+
+---
 
 ## 🚨 The Problem: MEV Sandwich Attacks
 
@@ -27,23 +35,11 @@ SecureLiquidPool implements a **Commit-Reveal** mechanism. Instead of broadcasti
 -   **Phase 1 (Commit)**: You hide your intent behind a cryptographic hash. Bots see *something* happened, but they don't know *what*, so they cannot sandwich you.
 -   **Phase 2 (Reveal)**: After a safe delay, you reveal and execute atomically. The trade happens instantly, leaving no gap for bots to insert themselves.
 
----
-
-## 📺 See It In Action (Demo)
-
-Watch the full application demo and technical code walkthrough:
-
-<a href="https://youtu.be/xxWfVNC1VfY" target="_blank">
-  <img src="https://img.youtube.com/vi/xxWfVNC1VfY/hqdefault.jpg" alt="Demo Video" width="600" />
-</a>
-
-[**Watch on YouTube**](https://youtu.be/xxWfVNC1VfY)
-
 > **Simulation Proof**: Check out our [Localnet Simulation](./mev-simulation/README.md) to see a live "Sandwich Bot" fail to attack our protocol while successfully draining a standard AMM.
 
 ---
 
-## 💰 How You Earn
+## 💰 How You/User Earn
 
 SecureLiquidPool combines the best of Liquid Staking (LSP) and Decentralized Exchanges (AMMs).
 
@@ -79,7 +75,7 @@ This repository contains the complete ecosystem:
 ## 🚀 Getting Started
 
 ### Prerequisites
--   **Bun** (Runtime & Package Manager)
+-   **Bun** (Runtime & Package Manager), or can use any JS runtime or package manager
 -   **Solana Tool Suite**
 -   **Anchor**
 
