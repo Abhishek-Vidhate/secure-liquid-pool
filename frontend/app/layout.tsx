@@ -18,6 +18,10 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "SecureLiquidPool | MEV-Protected Liquid Staking",
   description: "Stake SOL to receive secuSOL with commit-reveal MEV protection. Earn ~7% APY from validator staking rewards while staying safe from sandwich attacks.",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 
   keywords: ["Solana", "secuSOL", "secuLPT", "Liquid Staking", "MEV Protection", "DeFi"],
 };
