@@ -90,13 +90,12 @@ export const Providers: FC<ProvidersProps> = ({ children }) => {
 
   // Create connection with WebSocket disabled to prevent ws errors
   // WebSocket subscriptions can cause issues with some RPC providers
-  const connection = useMemo(() => {
-    return new Connection(endpoint, {
-      commitment: "confirmed", // Use "confirmed" for reliable state, Helius indexes quickly
-      wsEndpoint: null, // Disable WebSocket to prevent ws errors
-      disableRetryOnRateLimit: true, // Disable automatic retries - we handle rate limits manually
-    });
-  }, [endpoint]);
+  // Connection config
+  const config = useMemo(() => ({
+    commitment: "confirmed" as const,
+    wsEndpoint: undefined,
+    disableRetryOnRateLimit: true,
+  }), []);
 
   // Wallet adapters
   const wallets = useMemo(
@@ -109,17 +108,17 @@ export const Providers: FC<ProvidersProps> = ({ children }) => {
 
   return (
     <ErrorBoundary>
-    <ConnectionProvider endpoint={endpoint} connection={connection}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <AnchorProviderComponent>
+      <ConnectionProvider endpoint={endpoint} config={config}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <AnchorProviderComponent>
               <PoolDataProvider>
-            {children}
+                {children}
               </PoolDataProvider>
-          </AnchorProviderComponent>
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+            </AnchorProviderComponent>
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
     </ErrorBoundary>
   );
 };
