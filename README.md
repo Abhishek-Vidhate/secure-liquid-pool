@@ -33,7 +33,11 @@ SecureLiquidPool implements a **Commit-Reveal** mechanism. Instead of broadcasti
 
 Watch the full application demo and technical code walkthrough:
 
-[![Demo Video](https://img.youtube.com/vi/xxWfVNC1VfY/0.jpg)](https://youtu.be/xxWfVNC1VfY)
+<a href="https://youtu.be/xxWfVNC1VfY" target="_blank">
+  <img src="https://markdown-videos-api.vercel.app/url?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DxxWfVNC1VfY" alt="Demo Video" width="600" />
+</a>
+
+[**Watch on YouTube**](https://youtu.be/xxWfVNC1VfY)
 
 > **Simulation Proof**: Check out our [Localnet Simulation](./mev-simulation/README.md) to see a live "Sandwich Bot" fail to attack our protocol while successfully draining a standard AMM.
 
