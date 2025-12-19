@@ -12,7 +12,7 @@
 2.  **Victim Trades**: You buy at the inflated price.
 3.  **Back-run**: They sell immediately to profit from your loss.
 
-According to **[Helius Reports](https://helius.dev/blog/solana-mev-sandwiches)**:
+According to **[Helius Reports](https://www.helius.dev/blog/solana-mev-report)**:
 -   A single sandwich bot (Vpe...program) profited **~$13.43 Million** in just 30 days.
 -   Users on Solana lose an estimated **$300M - $500M annually** to these predatory bots.
 
@@ -26,6 +26,16 @@ SecureLiquidPool implements a **Commit-Reveal** mechanism. Instead of broadcasti
 
 -   **Phase 1 (Commit)**: You hide your intent behind a cryptographic hash. Bots see *something* happened, but they don't know *what*, so they cannot sandwich you.
 -   **Phase 2 (Reveal)**: After a safe delay, you reveal and execute atomically. The trade happens instantly, leaving no gap for bots to insert themselves.
+
+---
+
+## 📺 See It In Action (Demo)
+
+Watch the full application demo and technical code walkthrough:
+
+[![Demo Video](https://img.youtube.com/vi/xxWfVNC1VfY/0.jpg)](https://youtu.be/xxWfVNC1VfY)
+
+> **Simulation Proof**: Check out our [Localnet Simulation](./mev-simulation/README.md) to see a live "Sandwich Bot" fail to attack our protocol while successfully draining a standard AMM.
 
 ---
 
@@ -47,16 +57,6 @@ Swap between `SOL` and `secuSOL` using our custom **zero-slippage-exploitation A
 Become a Liquidity Provider (LP) by depositing `SOL` + `secuSOL`.
 -   **Fees**: Earn a share of every swap that happens in the pool.
 -   **LP Tokens**: Receive **`secuLPT`** to track your share of the pool.
-
----
-
-## 📺 See It In Action (Demo)
-
-Watch the full application demo and technical code walkthrough:
-
-[![Demo Video](https://img.youtube.com/vi/q_Cmnj-2DFQ/0.jpg)](https://www.youtube.com/watch?v=q_Cmnj-2DFQ)
-
-> **Simulation Proof**: Check out our [Localnet Simulation](./mev-simulation/README.md) to see a live "Sandwich Bot" fail to attack our protocol while successfully draining a standard AMM.
 
 ---
 
