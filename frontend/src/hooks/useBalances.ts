@@ -1,6 +1,6 @@
 "use client";
 
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { usePoolData } from "../contexts/PoolDataContext";
 
 export interface Balances {

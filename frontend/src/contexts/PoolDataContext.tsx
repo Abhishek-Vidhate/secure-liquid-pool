@@ -172,9 +172,9 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
   // Request deduplication
   const inFlightRequests = useRef<Set<string>>(new Set());
   const requestPromises = useRef<
-    Map<string, Promise<PoolConfig | AmmPool | void>>
+    Map<string, Promise<PoolConfig | AmmPool | CommitmentType | void | null>>
   >(new Map());
-  
+
   // Request throttling - track last request time per resource
   const lastRequestTime = useRef<Map<string, number>>(new Map());
   const MIN_REQUEST_INTERVAL_MS = 2000; // Minimum 2 seconds between requests for same resource
@@ -183,9 +183,9 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
   const isRateLimitError = useCallback((error: unknown): boolean => {
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
-      return message.includes("429") || 
-             message.includes("rate limit") || 
-             message.includes("too many requests");
+      return message.includes("429") ||
+        message.includes("rate limit") ||
+        message.includes("too many requests");
     }
     return false;
   }, []);
@@ -211,7 +211,7 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
           // If we've exhausted retries on rate limit, throw but don't spam
           throw error;
         }
-        
+
         // For non-rate-limit errors, use normal retry logic
         if (retries > 0) {
           await new Promise((resolve) =>
@@ -228,7 +228,7 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
   // Fetch pool config with deduplication
   const fetchPoolConfigWithDedup = useCallback(async (): Promise<PoolConfig | null> => {
     const requestKey = "poolConfig";
-    
+
     // If request is in-flight, return existing promise
     if (inFlightRequests.current.has(requestKey)) {
       const existingPromise = requestPromises.current.get(requestKey);
@@ -258,7 +258,7 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
   const refreshPoolConfig = useCallback(async () => {
     const isInitial = poolConfigLastFetch === null;
     const requestKey = "poolConfig";
-    
+
     // Throttle: For non-initial requests, check if we've made a request recently
     if (!isInitial) {
       const lastRequest = lastRequestTime.current.get(requestKey);
@@ -269,7 +269,7 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
       }
       lastRequestTime.current.set(requestKey, now);
     }
-    
+
     if (isInitial) {
       setPoolConfigInitialLoading(true);
     } else {
@@ -646,7 +646,7 @@ export function PoolDataProvider({ children }: PoolDataProviderProps) {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    
+
     return () => {
       stopPolling();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
