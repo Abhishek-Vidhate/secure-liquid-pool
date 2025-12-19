@@ -1,6 +1,6 @@
 # 🛡️ SecureLiquidPool Protocol
 
-# Pitch ( with Project Demo ) video : [youtube video link](https://youtu.be/xxWfVNC1VfY)
+# Pitch (with Project Demo) video : [youtube video link here](https://youtu.be/xxWfVNC1VfY)
 
 > **The First "Sandwich-Proof" Liquid Staking Protocol & AMM on Solana.**
 > Use **Commit-Reveal** technology to protect your trades and stakes from MEV bots while earning yield.
