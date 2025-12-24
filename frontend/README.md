@@ -19,16 +19,16 @@ bun install
 
 ### 2. Copy IDL and Types
 
-To ensure the frontend communicates correctly with the Solana program, you must copy the latest IDL and TypeScript definitions from your anchor workspace.
+To ensure the frontend communicates correctly with your **locally deployed** Solana programs (if using Option 2), you must copy the latest IDL and TypeScript definitions from your anchor workspace.
 
 **Run these commands from the `frontend/` directory:**
 
 ```bash
 # Copy IDL (Interface Definition Language)
-cp ../securelp/target/idl/securelp.json ./src/idl/
+cp ../securelp/target/idl/*.json ./src/idl/
 
 # Copy TypeScript Types
-cp ../securelp/target/types/securelp.ts ./src/types/
+cp ../securelp/target/types/*.ts ./src/types/
 ```
 
 > **Note**: If you make changes to the Solana program, you must run `anchor build` in the `securelp` directory and re-run these copy commands to keep the frontend in sync.
@@ -50,10 +50,16 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 
 ## 🧪 Testing
 
-This frontend connects to `localnet` by default (defined in `.env.local` or defaults to `http://127.0.0.1:8899`). 
+By default, the frontend connects to **Solana Devnet**.
 
-Ensure your local validator is running:
-```bash
-# In a separate terminal, inside securelp directory
-anchor localnet
-```
+To connect to **Localnet**:
+
+1.  Create a `.env.local` file in the `frontend` directory.
+2.  Set the RPC URL and your local Program IDs:
+    ```env
+    NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8899"
+    NEXT_PUBLIC_SECURELP_ID="<YOUR_LOCAL_PROGRAM_ID>"
+    NEXT_PUBLIC_STAKE_POOL_ID="<YOUR_LOCAL_PROGRAM_ID>"
+    NEXT_PUBLIC_AMM_ID="<YOUR_LOCAL_PROGRAM_ID>"
+    ```
+3.  Ensure your local validator is running `solana-test-validator`.

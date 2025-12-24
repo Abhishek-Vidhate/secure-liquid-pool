@@ -164,7 +164,38 @@ pub fn deposit_sol(ctx: Context<DepositSol>, amount_lamports: u64) -> Result<()>
     system_program::transfer(cpi_context, amount_lamports)?;
 
     // Mint secuSOL: Pool -> User
+// ...
+    // Mint secuSOL: Pool -> User
     token::mint_to(cpi_ctx, slp_to_mint)?;
     // ...
 }
 ```
+
+---
+
+## 🛠️ Development & Local Deployment
+
+To run these contracts on your local machine:
+
+1.  **Install Dependencies**:
+    ```bash
+    bun install
+    ```
+
+2.  **Start Local Validator**:
+    ```bash
+    solana-test-validator
+    ```
+
+3.  **Deploy to Localnet**:
+    *   **Step 1: Build & Generate Keys**
+        Run `anchor build`. This will create keypairs in `target/deploy/` if they don't exist.
+    *   **Step 2: Sync Program IDs**
+        Run `anchor keys sync` to automatically update `Anchor.toml` and `lib.rs` with your new local keys.
+    *   **Step 3: Build & Deploy**
+        ```bash
+        anchor build
+        anchor deploy
+        ```
+    *   **Step 4: Update Frontend**
+        Don't forget to copy the IDLs to the frontend and update your `.env.local` with the new program IDs found in `Anchor.toml`.

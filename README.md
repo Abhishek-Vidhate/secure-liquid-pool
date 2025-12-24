@@ -83,17 +83,59 @@ This repository contains the complete ecosystem:
 -   **Solana Tool Suite**
 -   **Anchor**
 
-### Quick Start
+### Local Setup
+
+You can run the project in two ways:
+
+#### Option 1: Frontend Only (Connecting to Devnet)
+The easiest way to test the UI. Connects to our pre-deployed contracts on Solana Devnet.
+
 1.  **Clone the repo**
-2.  **Start Local Validator & Deploy Programs**:
-    ```bash
-    cd securelp
-    anchor localnet
-    ```
-3.  **Run Frontend**:
+2.  **Run Frontend**:
     ```bash
     cd frontend
     bun install && bun dev
     ```
+
+#### Option 2: Complete Localnet Setup & Testing
+Run your own local blockchain implementation. **Use this if you want to modify smart contracts.**
+
+1.  **Setup Anchor Environment**:
+    ```bash
+    cd securelp
+    bun install
+    solana-test-validator  # Run in a separate terminal
+    ```
+
+2.  **Generate New Program IDs**:
+    *   **Build** to generate new keypairs (since `target/` is gitignored):
+        ```bash
+        anchor build
+        ```
+    *   **Sync Keys**: Update `Anchor.toml` and `lib.rs` with your new local keys:
+        ```bash
+        anchor keys sync
+        ```
+    *   **Rebuild & Deploy**:
+        ```bash
+        anchor build && anchor deploy
+        ```
+
+3.  **Setup Frontend**:
+    *   **Copy IDLs & Types**:
+        ```bash
+        # From securelp/ directory
+        cp target/idl/*.json ../frontend/src/idl/
+        cp target/types/*.ts ../frontend/src/types/
+        ```
+    *   **Configure Environment**:
+        Create a `.env.local` file in `frontend/` and add your new IDs (found in `Anchor.toml`) and local RPC:
+        ```env
+        NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8899"
+        NEXT_PUBLIC_SECURELP_ID="<YOUR_NEW_SECURELP_ID>"
+        NEXT_PUBLIC_STAKE_POOL_ID="<YOUR_NEW_STAKE_POOL_ID>"
+        NEXT_PUBLIC_AMM_ID="<YOUR_NEW_AMM_ID>"
+        ```
+    *   **Run**: `bun dev`
 
 *Read the specific READMEs in each directory for detailed setup instructions.*
