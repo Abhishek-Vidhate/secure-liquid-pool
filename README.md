@@ -134,13 +134,13 @@ anchor build && anchor deploy
 The programs are deployed but empty. We need to initialize the Stake Pool and AMM state.
 Our scripts automatically detect existing Program IDs from `Anchor.toml`.
 
+Initialize Stake Pool (creates the pool config and slpSOL mint):
 ```bash
-# Initialize Stake Pool
-# Creates the pool config and slpSOL mint
 ANCHOR_PROVIDER_URL="http://127.0.0.1:8899" ANCHOR_WALLET="$HOME/.config/solana/id.json" bun run scripts/initialize.ts
+```
 
-# Initialize AMM & Liquidity
-# Creates the AMM pool, LP mint, and adds initial liquidity
+Initialize AMM & Liquidity (creates the AMM pool, LP mint, and adds initial liquidity):
+```bash
 ANCHOR_PROVIDER_URL="http://127.0.0.1:8899" ANCHOR_WALLET="$HOME/.config/solana/id.json" bun run scripts/init-amm.ts
 ```
 
@@ -152,33 +152,32 @@ Now we connect the web UI to your local programs.
 1.  **Copy Interface Definitions (IDLs)**:
     This lets the frontend know the structure of your smart contracts.
     ```bash
-    # From securelp/ root
     cp target/idl/*.json ../frontend/src/idl/
     cp target/types/*.ts ../frontend/src/types/
     ```
 
 2.  **Update Environment Variables**:
-    Go to the `frontend/` directory and create/edit `.env.local`.
+    Go to the `frontend/` directory and create `.env.local`.
     ```bash
     cd ../frontend
-    cp .env.example .env.local # If you have an example file, otherwise create one
+    touch .env.local
     ```
     
     Update `.env.local` with:
     - **RPC URL**: `http://127.0.0.1:8899`
-    - **Program IDs**: Copy from `securelp/Anchor.toml` (under `[programs.localnet]`).
+    - **Program IDs**: Copy from `securelp/Anchor.toml` under the `[programs.localnet]` section.
     - **Mints & Pools**: Paste the values you copied from the **Step 2 script output**.
 
     *Example `.env.local`:*
     ```env
     NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8899"
-    NEXT_PUBLIC_SECURELP_ID="..."   # From Anchor.toml
-    NEXT_PUBLIC_STAKE_POOL_ID="..." # From Anchor.toml
-    NEXT_PUBLIC_AMM_ID="..."        # From Anchor.toml
+    NEXT_PUBLIC_SECURELP_ID="..."
+    NEXT_PUBLIC_STAKE_POOL_ID="..."
+    NEXT_PUBLIC_AMM_ID="..."
     
-    NEXT_PUBLIC_SLP_SOL_MINT="..."  # From script output
-    NEXT_PUBLIC_AMM_POOL="..."      # From script output
-    NEXT_PUBLIC_LP_MINT="..."       # From script output
+    NEXT_PUBLIC_SLP_SOL_MINT="..."
+    NEXT_PUBLIC_AMM_POOL="..."
+    NEXT_PUBLIC_LP_MINT="..."
     ```
 
 3.  **Run Frontend**:
