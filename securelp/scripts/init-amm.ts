@@ -18,15 +18,15 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import BN from "bn.js";
-import { 
-  PublicKey, 
-  Keypair, 
-  SystemProgram, 
+import {
+  PublicKey,
+  Keypair,
+  SystemProgram,
   LAMPORTS_PER_SOL,
   Transaction,
 } from "@solana/web3.js";
-import { 
-  TOKEN_PROGRAM_ID, 
+import {
+  TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -41,9 +41,35 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper to get program ID from Anchor.toml
+function getProgramId(cluster: string, programName: string): PublicKey {
+  const tomlContent = fs.readFileSync(path.join(__dirname, "../Anchor.toml"), "utf8");
+  const sectionHeader = `[programs.${cluster}]`;
+  const sectionIndex = tomlContent.indexOf(sectionHeader);
+
+  if (sectionIndex === -1) {
+    throw new Error(`Section ${sectionHeader} not found in Anchor.toml`);
+  }
+
+  const sectionContent = tomlContent.slice(sectionIndex);
+  const match = sectionContent.match(new RegExp(`${programName}\\s*=\\s*"([^"]+)"`));
+
+  if (!match) {
+    throw new Error(`Program ${programName} not found in [programs.${cluster}]`);
+  }
+
+  return new PublicKey(match[1]);
+}
+
+// Determine cluster
+const providerUrl = process.env.ANCHOR_PROVIDER_URL || "http://127.0.0.1:8899";
+const CLUSTER = providerUrl.includes("devnet") ? "devnet" : "localnet";
+
+console.log(`Configuring for ${CLUSTER}...`);
+
 // Program IDs
-const STAKE_POOL_PROGRAM_ID = new PublicKey("EyWBdqo6J5KEzQSvPYhsGFXjJfC6kkmTMGo8JTEzqhZ7");
-const AMM_PROGRAM_ID = new PublicKey("AcaXW2nDrvkpmuZnuiARDRJzmmfT1AZwLm4SMeYwnXKS");
+const STAKE_POOL_PROGRAM_ID = getProgramId(CLUSTER, "stake_pool");
+const AMM_PROGRAM_ID = getProgramId(CLUSTER, "amm");
 
 // PDA Seeds
 const POOL_CONFIG_SEED = "pool_config";
@@ -69,7 +95,7 @@ async function main() {
   // Setup provider
   const provider = AnchorProvider.env();
   anchor.setProvider(provider);
-  
+
   const wallet = provider.wallet.publicKey;
   console.log("\nWallet:", wallet.toString());
   console.log("Cluster:", provider.connection.rpcEndpoint);
@@ -172,7 +198,7 @@ async function main() {
   console.log("-".repeat(60));
 
   const neededSlp = BigInt(INITIAL_SLP_AMOUNT * LAMPORTS_PER_SOL);
-  
+
   if (slpBalance < neededSlp) {
     const stakeAmount = INITIAL_SLP_AMOUNT + 0.5; // Stake a bit extra
     console.log(`Staking ${stakeAmount} SOL to get slpSOL...`);
@@ -311,7 +337,7 @@ async function main() {
 
   // Re-fetch AMM pool data
   const ammData = await ammProgram.account.ammPool.fetch(ammPool);
-  
+
   if (Number(ammData.reserveA) === 0 && Number(ammData.reserveB) === 0) {
     console.log("Adding initial liquidity...");
 
@@ -367,7 +393,7 @@ async function main() {
     const { blockhash } = await provider.connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
     tx.feePayer = wallet;
-    
+
     const setupSig = await provider.sendAndConfirm(tx);
     console.log("✓ wSOL wrapped, tx:", setupSig);
 

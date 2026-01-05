@@ -1,8 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { 
-  TOKEN_PROGRAM_ID, 
+import {
+  TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -14,10 +14,44 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper to get program ID from Anchor.toml
+function getProgramId(cluster: string, programName: string): PublicKey {
+  const tomlContent = fs.readFileSync(path.join(__dirname, "../Anchor.toml"), "utf8");
+
+  // Normalize cluster name for Anchor.toml sections
+  // localnet -> [programs.localnet]
+  // devnet -> [programs.devnet]
+  // mainnet -> [programs.mainnet]
+
+  // Simple parsing strategy: find the section, then find the key
+  const sectionHeader = `[programs.${cluster}]`;
+  const sectionIndex = tomlContent.indexOf(sectionHeader);
+
+  if (sectionIndex === -1) {
+    throw new Error(`Section ${sectionHeader} not found in Anchor.toml`);
+  }
+
+  const sectionContent = tomlContent.slice(sectionIndex);
+  // Find the line starting with programName = "..."
+  const match = sectionContent.match(new RegExp(`${programName}\\s*=\\s*"([^"]+)"`));
+
+  if (!match) {
+    throw new Error(`Program ${programName} not found in [programs.${cluster}]`);
+  }
+
+  return new PublicKey(match[1]);
+}
+
+// Determine cluster from environment or provider
+const providerUrl = process.env.ANCHOR_PROVIDER_URL || "http://127.0.0.1:8899";
+const CLUSTER = providerUrl.includes("devnet") ? "devnet" : "localnet";
+
+console.log(`Configuring for ${CLUSTER}...`);
+
 // Program IDs
-const STAKE_POOL_PROGRAM_ID = new PublicKey("EyWBdqo6J5KEzQSvPYhsGFXjJfC6kkmTMGo8JTEzqhZ7");
-const AMM_PROGRAM_ID = new PublicKey("AcaXW2nDrvkpmuZnuiARDRJzmmfT1AZwLm4SMeYwnXKS");
-const SECURELP_PROGRAM_ID = new PublicKey("BMxQAdqNJE3Zn6iJedc6A6XbsSTmNBQi6UzFdfrNvE21");
+const STAKE_POOL_PROGRAM_ID = getProgramId(CLUSTER, "stake_pool");
+const AMM_PROGRAM_ID = getProgramId(CLUSTER, "amm");
+const SECURELP_PROGRAM_ID = getProgramId(CLUSTER, "securelp");
 
 // PDA Seeds
 const POOL_CONFIG_SEED = "pool_config";
@@ -39,7 +73,7 @@ async function main() {
   // Setup provider
   const provider = AnchorProvider.env();
   anchor.setProvider(provider);
-  
+
   console.log("\nWallet:", provider.wallet.publicKey.toString());
   console.log("Cluster:", provider.connection.rpcEndpoint);
 
@@ -82,10 +116,10 @@ async function main() {
 
   // Check if pool already initialized
   const existingPool = await provider.connection.getAccountInfo(poolConfig);
-  
+
   if (existingPool) {
     console.log("\n✓ Stake pool already initialized!");
-    
+
     // Fetch pool data
     const poolData = await stakePoolProgram.account.poolConfig.fetch(poolConfig);
     console.log("  slpSOL Mint:", poolData.slpMint.toString());
@@ -93,7 +127,7 @@ async function main() {
     console.log("  Total slpSOL:", (Number(poolData.totalSlpSupply) / LAMPORTS_PER_SOL).toFixed(4));
     console.log("  Reserve:", (Number(poolData.reserveLamports) / LAMPORTS_PER_SOL).toFixed(4), "SOL");
     console.log("  Fee:", poolData.feeBps, "bps");
-    
+
     // Store slpSOL mint for AMM
     var slpMint = poolData.slpMint;
   } else {
@@ -171,7 +205,7 @@ async function main() {
 
   if (existingAmm) {
     console.log("\n✓ AMM pool already initialized!");
-    
+
     const ammData = await ammProgram.account.ammPool.fetch(ammPool);
     console.log("  Reserve A (wSOL):", (Number(ammData.reserveA) / LAMPORTS_PER_SOL).toFixed(4));
     console.log("  Reserve B (slpSOL):", (Number(ammData.reserveB) / LAMPORTS_PER_SOL).toFixed(4));
@@ -202,7 +236,7 @@ async function main() {
   console.log("  Stake Pool:", `https://explorer.solana.com/address/${STAKE_POOL_PROGRAM_ID}?cluster=devnet`);
   console.log("  AMM:", `https://explorer.solana.com/address/${AMM_PROGRAM_ID}?cluster=devnet`);
   console.log("  SecureLP:", `https://explorer.solana.com/address/${SECURELP_PROGRAM_ID}?cluster=devnet`);
-  
+
   console.log("\n" + "=".repeat(60));
   console.log("Done! You can now use the frontend to stake SOL.");
   console.log("=".repeat(60));
